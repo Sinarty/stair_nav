@@ -1,0 +1,12 @@
+# IDs must be unique for every execution, including retries of one segment.
+string task_id
+string execution_id
+string segment_id
+---
+bool success
+string error_code
+string error_message
+bool navigation_stopped
+bool hold_confirmed
+---
+stair_nav_interfaces/SegmentStatus status

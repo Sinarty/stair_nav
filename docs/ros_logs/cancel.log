@@ -1,0 +1,20 @@
+[INFO] [launch]: All log files can be found below /tmp/stair_nav_ros_logs/2026-10-28-18-02-25-905286-user-MS-7E07-3494996
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [sim_executor-1]: process started with pid [3495032]
+[INFO] [segment_navigation-2]: process started with pid [3495034]
+[INFO] [task_manager-3]: process started with pid [3495036]
+[sim_executor-1] [INFO] [1793181746.191758323] [sim_executor]: SYNTHETIC simulation: velocity integration only; no stair dynamics or real hardware
+[segment_navigation-2] [INFO] [1793181746.214891343] [segment_navigation]: segment Action ready; candidate controls require an explicit adapter
+[segment_navigation-2] [INFO] [1793181746.256579489] [segment_navigation]: segment= execution= state=IDLE phase= error= 
+[segment_navigation-2] [INFO] [1793181746.321709988] [segment_navigation]: segment=AB execution=01ff5681-981d-42c8-be42-163a7672cdd5 state=PLANNING phase=planning error= 
+[segment_navigation-2] [INFO] [1793181746.358929430] [segment_navigation]: segment=AB execution=01ff5681-981d-42c8-be42-163a7672cdd5 state=WAIT_READY phase=waiting_ready error= 
+[task_manager-3] [INFO] [1793181746.388941198] [task_manager]: task= segment= state=IDLE error= 
+[segment_navigation-2] [INFO] [1793181746.412720640] [segment_navigation]: segment=AB execution=01ff5681-981d-42c8-be42-163a7672cdd5 state=EXECUTING phase=waiting_ready error= 
+[segment_navigation-2] [INFO] [1793181746.663286127] [segment_navigation]: segment=AB execution=01ff5681-981d-42c8-be42-163a7672cdd5 state=CANCELED phase=entry error=CANCELED Navigation revoked; adapter HOLD requested
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [task_manager-3]: sending signal 'SIGINT' to process[task_manager-3]
+[INFO] [segment_navigation-2]: sending signal 'SIGINT' to process[segment_navigation-2]
+[INFO] [sim_executor-1]: sending signal 'SIGINT' to process[sim_executor-1]
+[INFO] [sim_executor-1]: process has finished cleanly [pid 3495032]
+[INFO] [segment_navigation-2]: process has finished cleanly [pid 3495034]
+[INFO] [task_manager-3]: process has finished cleanly [pid 3495036]

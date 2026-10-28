@@ -1,0 +1,105 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Global Options:
+    Background Color: 30; 32; 38
+    Fixed Frame: map
+    Frame Rate: 30
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 1
+      Plane Cell Count: 20
+      Reference Frame: map
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Task nodes and platform stair regions
+      Enabled: true
+      Namespaces: {}
+      Topic:
+        Value: /navigation/scene
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Depth: 1
+    - Class: rviz_default_plugins/Path
+      Name: Reference path
+      Enabled: true
+      Color: 0; 220; 255
+      Line Style: Lines
+      Line Width: 0.05
+      Pose Style: None
+      Topic:
+        Value: /navigation/reference_path
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Depth: 1
+    - Class: rviz_default_plugins/Path
+      Name: Actual integrated trajectory
+      Enabled: true
+      Color: 255; 210; 40
+      Line Style: Lines
+      Line Width: 0.04
+      Pose Style: None
+      Topic:
+        Value: /simulation/trajectory
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Depth: 1
+    - Class: rviz_default_plugins/Pose
+      Name: Current lookahead reference
+      Enabled: true
+      Color: 255; 80; 100
+      Shape: Arrow
+      Shaft Length: 0.3
+      Shaft Radius: 0.04
+      Head Length: 0.15
+      Head Radius: 0.08
+      Topic:
+        Value: /navigation/reference_point
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Depth: 1
+    - Class: rviz_default_plugins/Pose
+      Name: Robot localization
+      Enabled: true
+      Color: 100; 255; 100
+      Shape: Arrow
+      Shaft Length: 0.35
+      Shaft Radius: 0.05
+      Head Length: 0.16
+      Head Radius: 0.09
+      Topic:
+        Value: /localization/pose
+        Reliability Policy: Reliable
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Depth: 5
+    - Class: rviz_default_plugins/Map
+      Name: Synthetic upper platform occupancy
+      Enabled: true
+      Alpha: 0.65
+      Color Scheme: map
+      Draw Behind: false
+      Topic:
+        Value: /simulation/platform_grid
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Depth: 1
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 12
+      Focal Point: {X: 4.5, Y: 0, Z: 1}
+      Pitch: 0.55
+      Yaw: 0.9
+      Target Frame: map
+Window Geometry:
+  Width: 1280
+  Height: 800

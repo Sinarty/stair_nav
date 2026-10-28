@@ -1,0 +1,10 @@
+frame: map
+reference_point: ground_projection
+points:
+  - {position: [3.0, 0.0, 1.0], phase: entry, mode: stair}
+  - {position: [3.5, 0.0, 1.0], phase: entry, mode: stair}
+  - {position: [4.0, 0.0, 1.25], phase: stair, mode: stair}
+  - {position: [4.5, 0.0, 1.5], phase: stair, mode: stair}
+  - {position: [5.0, 0.0, 1.75], phase: stair, mode: stair}
+  - {position: [5.5, 0.0, 2.0], phase: exit, mode: stair}
+  - {position: [6.0, 0.0, 2.0], phase: platform, mode: stair}

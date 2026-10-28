@@ -1,0 +1,21 @@
+[INFO] [launch]: All log files can be found below /tmp/stair_nav_ros_logs/2026-10-28-18-02-24-577341-user-MS-7E07-3494854
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [sim_executor-1]: process started with pid [3494864]
+[INFO] [segment_navigation-2]: process started with pid [3494866]
+[INFO] [task_manager-3]: process started with pid [3494868]
+[segment_navigation-2] [INFO] [1793181744.846238686] [segment_navigation]: segment Action ready; candidate controls require an explicit adapter
+[sim_executor-1] [INFO] [1793181744.858491771] [sim_executor]: SYNTHETIC simulation: velocity integration only; no stair dynamics or real hardware
+[segment_navigation-2] [INFO] [1793181744.889148539] [segment_navigation]: segment= execution= state=IDLE phase= error= 
+[segment_navigation-2] [INFO] [1793181744.948540116] [segment_navigation]: segment=AB execution=9f796ac2-db6c-4303-a4b3-05668ca8061a state=PLANNING phase=planning error= 
+[segment_navigation-2] [INFO] [1793181744.990552075] [segment_navigation]: segment=AB execution=9f796ac2-db6c-4303-a4b3-05668ca8061a state=WAIT_READY phase=waiting_ready error= 
+[segment_navigation-2] [INFO] [1793181745.039344155] [segment_navigation]: segment=AB execution=9f796ac2-db6c-4303-a4b3-05668ca8061a state=EXECUTING phase=waiting_ready error= 
+[sim_executor-1] [INFO] [1793181745.041058567] [sim_executor]: localization_dropout=True
+[task_manager-3] [INFO] [1793181745.071633659] [task_manager]: task= segment= state=IDLE error= 
+[segment_navigation-2] [INFO] [1793181745.539335018] [segment_navigation]: segment=AB execution=9f796ac2-db6c-4303-a4b3-05668ca8061a state=FAILED phase=entry error=POSE_STALE Localization timestamp exceeded its freshness limit
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [task_manager-3]: sending signal 'SIGINT' to process[task_manager-3]
+[INFO] [segment_navigation-2]: sending signal 'SIGINT' to process[segment_navigation-2]
+[INFO] [sim_executor-1]: sending signal 'SIGINT' to process[sim_executor-1]
+[INFO] [sim_executor-1]: process has finished cleanly [pid 3494864]
+[INFO] [segment_navigation-2]: process has finished cleanly [pid 3494866]
+[INFO] [task_manager-3]: process has finished cleanly [pid 3494868]

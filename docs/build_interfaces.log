@@ -1,0 +1,310 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+-- Override CMake install command with custom implementation using symlinks instead of copying resources
+-- Found rosidl_default_generators: 1.2.1 (/opt/ros/humble/share/rosidl_default_generators/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Found rosidl_adapter: 3.1.9 (/opt/ros/humble/share/rosidl_adapter/cmake)
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found std_msgs: 4.9.2 (/opt/ros/humble/share/std_msgs/cmake)
+-- Found ament_cmake_ros: 0.10.1 (/opt/ros/humble/share/ament_cmake_ros/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found PythonInterp: /usr/bin/python3 (found suitable version "3.10.12", minimum required is "3.6") 
+-- Found python_cmake_module: 0.10.0 (/opt/ros/humble/share/python_cmake_module/cmake)
+-- Found PythonLibs: /usr/lib/x86_64-linux-gnu/libpython3.10.so (found suitable version "3.10.12", minimum required is "3.5") 
+-- Using PYTHON_EXECUTABLE: /usr/bin/python3
+-- Using PYTHON_INCLUDE_DIRS: /usr/include/python3.10
+-- Using PYTHON_LIBRARIES: /usr/lib/x86_64-linux-gnu/libpython3.10.so
+-- Found PythonExtra: .so  
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/syf/ros2_ws/src/stair_nav/.colcon/build/stair_nav_interfaces
+[  1%] Generating C code for ROS interfaces
+[  3%] Generating Rust code for ROS interfaces
+[  4%] Generating C++ code for ROS interfaces
+[  4%] Built target ament_cmake_python_symlink_stair_nav_interfaces
+running egg_info
+creating stair_nav_interfaces.egg-info
+writing stair_nav_interfaces.egg-info/PKG-INFO
+writing dependency_links to stair_nav_interfaces.egg-info/dependency_links.txt
+writing top-level names to stair_nav_interfaces.egg-info/top_level.txt
+writing manifest file 'stair_nav_interfaces.egg-info/SOURCES.txt'
+reading manifest file 'stair_nav_interfaces.egg-info/SOURCES.txt'
+writing manifest file 'stair_nav_interfaces.egg-info/SOURCES.txt'
+[  4%] Built target ament_cmake_python_build_stair_nav_interfaces_egg
+[  4%] Built target stair_nav_interfaces__rs
+[  7%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_generator_c.dir/rosidl_generator_c/stair_nav_interfaces/action/detail/navigate_segment__functions.c.o
+[  7%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_generator_c.dir/rosidl_generator_c/stair_nav_interfaces/msg/detail/control_command__functions.c.o
+[  9%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_generator_c.dir/rosidl_generator_c/stair_nav_interfaces/msg/detail/motion_status__functions.c.o
+[ 10%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_generator_c.dir/rosidl_generator_c/stair_nav_interfaces/msg/detail/channel_event__functions.c.o
+[ 12%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_generator_c.dir/rosidl_generator_c/stair_nav_interfaces/msg/detail/segment_status__functions.c.o
+[ 12%] Built target stair_nav_interfaces__cpp
+[ 14%] Generating C++ introspection for ROS interfaces
+[ 17%] Generating C++ type support for eProsima Fast-RTPS
+[ 17%] Generating C++ type support dispatch for ROS interfaces
+[ 18%] Linking C shared library libstair_nav_interfaces__rosidl_generator_c.so
+[ 18%] Built target stair_nav_interfaces__rosidl_generator_c
+[ 20%] Generating C type support for eProsima Fast-RTPS
+[ 23%] Generating C introspection for ROS interfaces
+[ 23%] Generating C type support dispatch for ROS interfaces
+[ 26%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/stair_nav_interfaces/msg/motion_status__type_support.cpp.o
+[ 26%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/stair_nav_interfaces/msg/control_command__type_support.cpp.o
+[ 28%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/stair_nav_interfaces/msg/channel_event__type_support.cpp.o
+[ 31%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/stair_nav_interfaces/msg/segment_status__type_support.cpp.o
+[ 31%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/stair_nav_interfaces/action/navigate_segment__type_support.cpp.o
+[ 32%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/stair_nav_interfaces/action/detail/navigate_segment__type_support.cpp.o
+[ 35%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/stair_nav_interfaces/msg/detail/control_command__type_support.cpp.o
+[ 35%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/stair_nav_interfaces/msg/detail/motion_status__type_support.cpp.o
+[ 37%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/stair_nav_interfaces/msg/detail/segment_status__type_support.cpp.o
+[ 39%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/stair_nav_interfaces/msg/detail/channel_event__type_support.cpp.o
+[ 45%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/stair_nav_interfaces/msg/channel_event__type_support.cpp.o
+[ 45%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/stair_nav_interfaces/msg/control_command__type_support.cpp.o
+[ 45%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/stair_nav_interfaces/msg/motion_status__type_support.cpp.o
+[ 45%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/stair_nav_interfaces/msg/segment_status__type_support.cpp.o
+[ 46%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/stair_nav_interfaces/action/navigate_segment__type_support.cpp.o
+[ 51%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/stair_nav_interfaces/msg/detail/dds_fastrtps/segment_status__type_support.cpp.o
+[ 51%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/stair_nav_interfaces/action/detail/dds_fastrtps/navigate_segment__type_support.cpp.o
+[ 51%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/stair_nav_interfaces/msg/detail/dds_fastrtps/motion_status__type_support.cpp.o
+[ 53%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/stair_nav_interfaces/msg/detail/dds_fastrtps/control_command__type_support.cpp.o
+[ 54%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/stair_nav_interfaces/msg/detail/dds_fastrtps/channel_event__type_support.cpp.o
+[ 57%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/stair_nav_interfaces/action/detail/navigate_segment__type_support.c.o
+[ 57%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/stair_nav_interfaces/msg/detail/segment_status__type_support.c.o
+[ 62%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/stair_nav_interfaces/msg/detail/motion_status__type_support.c.o
+[ 62%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/stair_nav_interfaces/msg/detail/control_command__type_support.c.o
+[ 62%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/stair_nav_interfaces/msg/detail/channel_event__type_support.c.o
+[ 64%] Linking CXX shared library libstair_nav_interfaces__rosidl_typesupport_c.so
+[ 67%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/stair_nav_interfaces/msg/detail/channel_event__type_support_c.cpp.o
+[ 68%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/stair_nav_interfaces/msg/detail/motion_status__type_support_c.cpp.o
+[ 65%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/stair_nav_interfaces/msg/detail/control_command__type_support_c.cpp.o
+[ 71%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/stair_nav_interfaces/action/detail/navigate_segment__type_support_c.cpp.o
+[ 71%] Building CXX object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/stair_nav_interfaces/msg/detail/segment_status__type_support_c.cpp.o
+[ 73%] Linking C shared library libstair_nav_interfaces__rosidl_typesupport_introspection_c.so
+[ 73%] Built target stair_nav_interfaces__rosidl_typesupport_c
+[ 73%] Built target stair_nav_interfaces__rosidl_typesupport_introspection_c
+[ 75%] Linking CXX shared library libstair_nav_interfaces__rosidl_typesupport_cpp.so
+[ 75%] Built target stair_nav_interfaces__rosidl_typesupport_cpp
+[ 76%] Linking CXX shared library libstair_nav_interfaces__rosidl_typesupport_introspection_cpp.so
+[ 78%] Linking CXX shared library libstair_nav_interfaces__rosidl_typesupport_fastrtps_cpp.so
+[ 79%] Linking CXX shared library libstair_nav_interfaces__rosidl_typesupport_fastrtps_c.so
+[ 79%] Built target stair_nav_interfaces__rosidl_typesupport_introspection_cpp
+[ 79%] Built target stair_nav_interfaces__rosidl_typesupport_fastrtps_cpp
+[ 79%] Built target stair_nav_interfaces__rosidl_typesupport_fastrtps_c
+[ 79%] Built target stair_nav_interfaces
+[ 81%] Generating Python code for ROS interfaces
+[ 81%] Built target stair_nav_interfaces__py
+[ 84%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_generator_py.dir/rosidl_generator_py/stair_nav_interfaces/msg/_control_command_s.c.o
+[ 85%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_generator_py.dir/rosidl_generator_py/stair_nav_interfaces/msg/_channel_event_s.c.o
+[ 85%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_generator_py.dir/rosidl_generator_py/stair_nav_interfaces/msg/_motion_status_s.c.o
+[ 87%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_generator_py.dir/rosidl_generator_py/stair_nav_interfaces/msg/_segment_status_s.c.o
+[ 89%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_generator_py.dir/rosidl_generator_py/stair_nav_interfaces/action/_navigate_segment_s.c.o
+[ 90%] Linking C shared library rosidl_generator_py/stair_nav_interfaces/libstair_nav_interfaces__rosidl_generator_py.so
+[ 90%] Built target stair_nav_interfaces__rosidl_generator_py
+[ 92%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_fastrtps_c__pyext.dir/rosidl_generator_py/stair_nav_interfaces/_stair_nav_interfaces_s.ep.rosidl_typesupport_fastrtps_c.c.o
+[ 95%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_c__pyext.dir/rosidl_generator_py/stair_nav_interfaces/_stair_nav_interfaces_s.ep.rosidl_typesupport_c.c.o
+[ 95%] Building C object CMakeFiles/stair_nav_interfaces__rosidl_typesupport_introspection_c__pyext.dir/rosidl_generator_py/stair_nav_interfaces/_stair_nav_interfaces_s.ep.rosidl_typesupport_introspection_c.c.o
+[ 96%] Linking C shared library rosidl_generator_py/stair_nav_interfaces/stair_nav_interfaces_s__rosidl_typesupport_introspection_c.cpython-310-x86_64-linux-gnu.so
+[ 98%] Linking C shared library rosidl_generator_py/stair_nav_interfaces/stair_nav_interfaces_s__rosidl_typesupport_fastrtps_c.cpython-310-x86_64-linux-gnu.so
+[100%] Linking C shared library rosidl_generator_py/stair_nav_interfaces/stair_nav_interfaces_s__rosidl_typesupport_c.cpython-310-x86_64-linux-gnu.so
+[100%] Built target stair_nav_interfaces__rosidl_typesupport_introspection_c__pyext
+[100%] Built target stair_nav_interfaces__rosidl_typesupport_fastrtps_c__pyext
+[100%] Built target stair_nav_interfaces__rosidl_typesupport_c__pyext
+-- Install configuration: ""
+-- Execute custom install script
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/ament_index/resource_index/rosidl_interfaces/stair_nav_interfaces
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__functions.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__struct.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__type_support.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/navigate_segment.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/channel_event.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/control_command.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__functions.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__struct.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__type_support.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__functions.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__struct.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__type_support.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__functions.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__struct.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__type_support.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__functions.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__struct.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__type_support.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/motion_status.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/rosidl_generator_c__visibility_control.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/segment_status.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/environment/library_path.sh
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/environment/library_path.dsv
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__rosidl_typesupport_fastrtps_c.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__rosidl_typesupport_fastrtps_c.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__rosidl_typesupport_fastrtps_c.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__rosidl_typesupport_fastrtps_c.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__rosidl_typesupport_fastrtps_c.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/rosidl_typesupport_fastrtps_c__visibility_control.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__rosidl_typesupport_introspection_c.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__rosidl_typesupport_introspection_c.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__rosidl_typesupport_introspection_c.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__rosidl_typesupport_introspection_c.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__rosidl_typesupport_introspection_c.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/rosidl_typesupport_introspection_c__visibility_control.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__builder.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__struct.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__traits.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__type_support.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/navigate_segment.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/channel_event.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/control_command.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__builder.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__struct.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__traits.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__type_support.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__builder.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__struct.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__traits.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__type_support.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__builder.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__struct.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__traits.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__type_support.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__builder.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__struct.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__traits.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__type_support.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/motion_status.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/rosidl_generator_cpp__visibility_control.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/segment_status.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__rosidl_typesupport_fastrtps_cpp.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__rosidl_typesupport_fastrtps_cpp.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__rosidl_typesupport_fastrtps_cpp.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__rosidl_typesupport_fastrtps_cpp.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__rosidl_typesupport_fastrtps_cpp.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/rosidl_typesupport_fastrtps_cpp__visibility_control.h
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/action/detail/navigate_segment__rosidl_typesupport_introspection_cpp.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/channel_event__rosidl_typesupport_introspection_cpp.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/control_command__rosidl_typesupport_introspection_cpp.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/motion_status__rosidl_typesupport_introspection_cpp.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/include/stair_nav_interfaces/stair_nav_interfaces/msg/detail/segment_status__rosidl_typesupport_introspection_cpp.hpp
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/environment/pythonpath.sh
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/environment/pythonpath.dsv
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces-0.1.0-py3.10.egg-info/PKG-INFO
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces-0.1.0-py3.10.egg-info/SOURCES.txt
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces-0.1.0-py3.10.egg-info/dependency_links.txt
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces-0.1.0-py3.10.egg-info/top_level.txt
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/__init__.py
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/_stair_nav_interfaces_s.ep.rosidl_typesupport_c.c
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/_stair_nav_interfaces_s.ep.rosidl_typesupport_fastrtps_c.c
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/_stair_nav_interfaces_s.ep.rosidl_typesupport_introspection_c.c
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/action/__init__.py
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/action/_navigate_segment.py
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/action/_navigate_segment_s.c
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/libstair_nav_interfaces__rosidl_generator_py.so
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/__init__.py
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_channel_event.py
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_channel_event_s.c
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_control_command.py
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_control_command_s.c
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_motion_status.py
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_motion_status_s.c
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_segment_status.py
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_segment_status_s.c
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/stair_nav_interfaces_s__rosidl_typesupport_c.cpython-310-x86_64-linux-gnu.so
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/stair_nav_interfaces_s__rosidl_typesupport_fastrtps_c.cpython-310-x86_64-linux-gnu.so
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/stair_nav_interfaces_s__rosidl_typesupport_introspection_c.cpython-310-x86_64-linux-gnu.so
+-- Up-to-date symlink: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/stair_nav_interfaces_s__rosidl_typesupport_fastrtps_c.cpython-310-x86_64-linux-gnu.so
+-- Up-to-date symlink: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/stair_nav_interfaces_s__rosidl_typesupport_introspection_c.cpython-310-x86_64-linux-gnu.so
+-- Up-to-date symlink: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/stair_nav_interfaces_s__rosidl_typesupport_c.cpython-310-x86_64-linux-gnu.so
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/rust/Cargo.toml
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/rust/build.rs
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/rust/src/action.rs
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/rust/src/action/rmw.rs
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/rust/src/lib.rs
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/rust/src/msg.rs
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/rust/src/msg/rmw.rs
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/msg/ControlCommand.idl
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/msg/MotionStatus.idl
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/msg/ChannelEvent.idl
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/msg/SegmentStatus.idl
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/action/NavigateSegment.idl
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/msg/ControlCommand.msg
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/msg/MotionStatus.msg
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/msg/ChannelEvent.msg
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/msg/SegmentStatus.msg
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/action/NavigateSegment.action
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/ament_index/resource_index/package_run_dependencies/stair_nav_interfaces
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/ament_index/resource_index/parent_prefix_path/stair_nav_interfaces
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/environment/ament_prefix_path.sh
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/environment/ament_prefix_path.dsv
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/environment/path.sh
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/environment/path.dsv
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/local_setup.bash
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/local_setup.sh
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/local_setup.zsh
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/local_setup.dsv
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/package.dsv
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/ament_index/resource_index/packages/stair_nav_interfaces
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/rosidl_cmake-extras.cmake
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/ament_cmake_export_dependencies-extras.cmake
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/ament_cmake_export_include_directories-extras.cmake
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/ament_cmake_export_libraries-extras.cmake
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/ament_cmake_export_targets-extras.cmake
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/rosidl_cmake_export_typesupport_targets-extras.cmake
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/rosidl_cmake_aggregate_target-extras.cmake
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/stair_nav_interfacesConfig.cmake
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/stair_nav_interfacesConfig-version.cmake
+-- Symlinking: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/package.xml
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_generator_c.so
+-- Set runtime path of "/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_generator_c.so" to ""
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_fastrtps_c.so
+-- Set runtime path of "/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_fastrtps_c.so" to ""
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_introspection_c.so
+-- Set runtime path of "/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_introspection_c.so" to ""
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_c.so
+-- Set runtime path of "/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_c.so" to ""
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_fastrtps_cpp.so
+-- Set runtime path of "/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_fastrtps_cpp.so" to ""
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_introspection_cpp.so
+-- Set runtime path of "/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_introspection_cpp.so" to ""
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_cpp.so
+-- Set runtime path of "/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_typesupport_cpp.so" to ""
+Listing '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces'...
+Compiling '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/__init__.py'...
+Listing '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/action'...
+Compiling '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/action/__init__.py'...
+Compiling '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/action/_navigate_segment.py'...
+Listing '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg'...
+Compiling '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/__init__.py'...
+Compiling '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_channel_event.py'...
+Compiling '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_control_command.py'...
+Compiling '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_motion_status.py'...
+Compiling '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/local/lib/python3.10/dist-packages/stair_nav_interfaces/msg/_segment_status.py'...
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_generator_py.so
+-- Set runtime path of "/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/lib/libstair_nav_interfaces__rosidl_generator_py.so" to ""
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/export_stair_nav_interfaces__rosidl_generator_cExport.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/export_stair_nav_interfaces__rosidl_generator_cExport-noconfig.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/export_stair_nav_interfaces__rosidl_typesupport_fastrtps_cExport.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/export_stair_nav_interfaces__rosidl_typesupport_fastrtps_cExport-noconfig.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/stair_nav_interfaces__rosidl_typesupport_introspection_cExport.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/stair_nav_interfaces__rosidl_typesupport_introspection_cExport-noconfig.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/stair_nav_interfaces__rosidl_typesupport_cExport.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/stair_nav_interfaces__rosidl_typesupport_cExport-noconfig.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/export_stair_nav_interfaces__rosidl_generator_cppExport.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/export_stair_nav_interfaces__rosidl_typesupport_fastrtps_cppExport.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/export_stair_nav_interfaces__rosidl_typesupport_fastrtps_cppExport-noconfig.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/stair_nav_interfaces__rosidl_typesupport_introspection_cppExport.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/stair_nav_interfaces__rosidl_typesupport_introspection_cppExport-noconfig.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/stair_nav_interfaces__rosidl_typesupport_cppExport.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/stair_nav_interfaces__rosidl_typesupport_cppExport-noconfig.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/export_stair_nav_interfaces__rosidl_generator_pyExport.cmake
+-- Installing: /home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav_interfaces/share/stair_nav_interfaces/cmake/export_stair_nav_interfaces__rosidl_generator_pyExport-noconfig.cmake

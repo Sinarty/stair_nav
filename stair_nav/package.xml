@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>stair_nav</name>
+  <version>0.1.0</version>
+  <description>Configurable segmented route planning, tracking, action execution and synthetic demo.</description>
+  <maintainer email="maintainer@example.com">Stair navigation team</maintainer>
+  <license>Apache-2.0</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <depend>rclpy</depend>
+  <depend>tf2_ros</depend>
+  <depend>stair_nav_interfaces</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>builtin_interfaces</depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

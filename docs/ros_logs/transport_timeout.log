@@ -1,0 +1,37 @@
+[INFO] [launch]: All log files can be found below /tmp/stair_nav_transport_smoke/ros_logs/2026-10-28-18-02-58-987110-user-MS-7E07-49
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [sim_executor-1]: process started with pid [60]
+[INFO] [segment_navigation-2]: process started with pid [62]
+[INFO] [task_manager-3]: process started with pid [64]
+[task_manager-3] getifaddrs: Operation not permitted
+[task_manager-3] getifaddrs: Operation not permitted
+[task_manager-3] getifaddrs: Operation not permitted
+[task_manager-3] [37;1m2026-10-28 18:02:59.176 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[task_manager-3] [37;1m2026-10-28 18:02:59.176 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[sim_executor-1] getifaddrs: Operation not permitted
+[sim_executor-1] getifaddrs: Operation not permitted
+[sim_executor-1] getifaddrs: Operation not permitted
+[sim_executor-1] [37;1m2026-10-28 18:02:59.198 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[sim_executor-1] [37;1m2026-10-28 18:02:59.198 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[segment_navigation-2] getifaddrs: Operation not permitted
+[segment_navigation-2] getifaddrs: Operation not permitted
+[segment_navigation-2] getifaddrs: Operation not permitted
+[segment_navigation-2] [37;1m2026-10-28 18:02:59.226 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[segment_navigation-2] [37;1m2026-10-28 18:02:59.226 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[sim_executor-1] [INFO] [1793181779.263463752] [sim_executor]: SYNTHETIC simulation: velocity integration only; no stair dynamics or real hardware
+[segment_navigation-2] [INFO] [1793181779.289651484] [segment_navigation]: segment Action ready; candidate controls require an explicit adapter
+[segment_navigation-2] [INFO] [1793181779.334142414] [segment_navigation]: segment= execution= state=IDLE phase= error= 
+[task_manager-3] [INFO] [1793181779.359316284] [task_manager]: task=506eb761-52d8-4537-a9d6-bee69c37bd80 segment=AB state=DISPATCHING error= 
+[segment_navigation-2] [INFO] [1793181779.384231690] [segment_navigation]: segment=AB execution=84ac5f58-3f51-4998-a8ea-a60f014d0dab state=PLANNING phase=planning error= 
+[task_manager-3] [INFO] [1793181779.385502586] [task_manager]: task=506eb761-52d8-4537-a9d6-bee69c37bd80 segment=AB state=PLANNING error= 
+[segment_navigation-2] [INFO] [1793181779.433396413] [segment_navigation]: segment=AB execution=84ac5f58-3f51-4998-a8ea-a60f014d0dab state=WAIT_READY phase=waiting_ready error= 
+[task_manager-3] [INFO] [1793181779.436244433] [task_manager]: task=506eb761-52d8-4537-a9d6-bee69c37bd80 segment=AB state=WAIT_READY error= 
+[segment_navigation-2] [INFO] [1793181779.484636425] [segment_navigation]: segment=AB execution=84ac5f58-3f51-4998-a8ea-a60f014d0dab state=EXECUTING phase=waiting_ready error= 
+[task_manager-3] [INFO] [1793181779.487190604] [task_manager]: task=506eb761-52d8-4537-a9d6-bee69c37bd80 segment=AB state=EXECUTING error= 
+[ERROR] [segment_navigation-2]: process has died [pid 62, exit code -9, cmd '/home/syf/ros2_ws/src/stair_nav/.colcon/install/stair_nav/lib/stair_nav/segment_navigation --ros-args --params-file /tmp/launch_params_yrqblcep'].
+[task_manager-3] [INFO] [1793181784.615259784] [task_manager]: task=506eb761-52d8-4537-a9d6-bee69c37bd80 segment=AB state=TRANSPORT_TIMEOUT error=ACTION_TRANSPORT_TIMEOUT No action acceptance/feedback within transport deadline
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [task_manager-3]: sending signal 'SIGINT' to process[task_manager-3]
+[INFO] [sim_executor-1]: sending signal 'SIGINT' to process[sim_executor-1]
+[INFO] [task_manager-3]: process has finished cleanly [pid 64]
+[INFO] [sim_executor-1]: process has finished cleanly [pid 60]

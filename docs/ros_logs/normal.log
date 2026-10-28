@@ -1,0 +1,49 @@
+[INFO] [launch]: All log files can be found below /tmp/stair_nav_ros_logs/2026-10-28-18-01-55-546890-user-MS-7E07-3494512
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [sim_executor-1]: process started with pid [3494523]
+[INFO] [segment_navigation-2]: process started with pid [3494525]
+[INFO] [task_manager-3]: process started with pid [3494527]
+[sim_executor-1] [INFO] [1793181715.826910777] [sim_executor]: SYNTHETIC simulation: velocity integration only; no stair dynamics or real hardware
+[segment_navigation-2] [INFO] [1793181715.837860574] [segment_navigation]: segment Action ready; candidate controls require an explicit adapter
+[segment_navigation-2] [INFO] [1793181715.877362431] [segment_navigation]: segment= execution= state=IDLE phase= error= 
+[task_manager-3] [INFO] [1793181715.895064192] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=AB state=DISPATCHING error= 
+[segment_navigation-2] [INFO] [1793181715.938317068] [segment_navigation]: segment=AB execution=63be2c2c-33c4-4452-9726-91705d65d80b state=PLANNING phase=planning error= 
+[task_manager-3] [INFO] [1793181715.940969748] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=AB state=PLANNING error= 
+[segment_navigation-2] [INFO] [1793181715.979490854] [segment_navigation]: segment=AB execution=63be2c2c-33c4-4452-9726-91705d65d80b state=WAIT_READY phase=waiting_ready error= 
+[task_manager-3] [INFO] [1793181715.981842787] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=AB state=WAIT_READY error= 
+[segment_navigation-2] [INFO] [1793181716.029244228] [segment_navigation]: segment=AB execution=63be2c2c-33c4-4452-9726-91705d65d80b state=EXECUTING phase=waiting_ready error= 
+[task_manager-3] [INFO] [1793181716.031291330] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=AB state=EXECUTING error= 
+[segment_navigation-2] [INFO] [1793181722.078079746] [segment_navigation]: segment=AB execution=63be2c2c-33c4-4452-9726-91705d65d80b state=ARRIVAL_CONFIRM phase=geometric_candidate error= 
+[task_manager-3] [INFO] [1793181722.081026293] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=AB state=ARRIVAL_CONFIRM error= 
+[segment_navigation-2] [INFO] [1793181722.780202903] [segment_navigation]: segment=AB execution=63be2c2c-33c4-4452-9726-91705d65d80b state=SUCCEEDED phase=geometric_candidate error= Geometry and configured adapter confirmations satisfied
+[task_manager-3] [INFO] [1793181722.783932822] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=AB state=SEGMENT_SUCCEEDED error= Geometry and configured adapter confirmations satisfied
+[task_manager-3] [INFO] [1793181722.788233020] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=BC state=DISPATCHING error= 
+[segment_navigation-2] [INFO] [1793181722.836620785] [segment_navigation]: segment=BC execution=1425a733-a40d-4f08-9c64-e454ea03f7c2 state=PLANNING phase=planning error= 
+[task_manager-3] [INFO] [1793181722.840140669] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=BC state=PLANNING error= 
+[segment_navigation-2] [INFO] [1793181722.878967141] [segment_navigation]: segment=BC execution=1425a733-a40d-4f08-9c64-e454ea03f7c2 state=WAIT_READY phase=waiting_ready error= 
+[task_manager-3] [INFO] [1793181722.881937511] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=BC state=WAIT_READY error= 
+[segment_navigation-2] [INFO] [1793181722.928931876] [segment_navigation]: segment=BC execution=1425a733-a40d-4f08-9c64-e454ea03f7c2 state=EXECUTING phase=waiting_ready error= 
+[task_manager-3] [INFO] [1793181722.931145037] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=BC state=EXECUTING error= 
+[segment_navigation-2] [INFO] [1793181729.128523819] [segment_navigation]: segment=BC execution=1425a733-a40d-4f08-9c64-e454ea03f7c2 state=ARRIVAL_CONFIRM phase=geometric_candidate error= 
+[task_manager-3] [INFO] [1793181729.130751369] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=BC state=ARRIVAL_CONFIRM error= 
+[segment_navigation-2] [INFO] [1793181729.778899591] [segment_navigation]: segment=BC execution=1425a733-a40d-4f08-9c64-e454ea03f7c2 state=SUCCEEDED phase=geometric_candidate error= Geometry and configured adapter confirmations satisfied
+[task_manager-3] [INFO] [1793181729.782455814] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=BC state=SEGMENT_SUCCEEDED error= Geometry and configured adapter confirmations satisfied
+[task_manager-3] [INFO] [1793181729.786745568] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=CD state=DISPATCHING error= 
+[segment_navigation-2] [INFO] [1793181729.866638846] [segment_navigation]: segment=CD execution=d83628aa-34d1-4510-b49e-62c13f9517b7 state=PLANNING phase=planning error= 
+[task_manager-3] [INFO] [1793181729.867404952] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=CD state=PLANNING error= 
+[segment_navigation-2] [INFO] [1793181729.876982546] [segment_navigation]: segment=CD execution=d83628aa-34d1-4510-b49e-62c13f9517b7 state=WAIT_READY phase=waiting_ready error= 
+[task_manager-3] [INFO] [1793181729.877529933] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=CD state=WAIT_READY error= 
+[segment_navigation-2] [INFO] [1793181729.928265827] [segment_navigation]: segment=CD execution=d83628aa-34d1-4510-b49e-62c13f9517b7 state=EXECUTING phase=waiting_ready error= 
+[task_manager-3] [INFO] [1793181729.930369168] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=CD state=EXECUTING error= 
+[segment_navigation-2] [INFO] [1793181739.778556935] [segment_navigation]: segment=CD execution=d83628aa-34d1-4510-b49e-62c13f9517b7 state=ARRIVAL_CONFIRM phase=geometric_candidate error= 
+[task_manager-3] [INFO] [1793181739.780853593] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=CD state=ARRIVAL_CONFIRM error= 
+[segment_navigation-2] [INFO] [1793181740.428772000] [segment_navigation]: segment=CD execution=d83628aa-34d1-4510-b49e-62c13f9517b7 state=SUCCEEDED phase=geometric_candidate error= Geometry and configured adapter confirmations satisfied
+[task_manager-3] [INFO] [1793181740.432637101] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=CD state=SEGMENT_SUCCEEDED error= Geometry and configured adapter confirmations satisfied
+[task_manager-3] [INFO] [1793181740.434961577] [task_manager]: task=c0fa77fc-2adb-47fe-baed-0234ee3944b4 segment=CD state=SUCCEEDED error= 
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [task_manager-3]: sending signal 'SIGINT' to process[task_manager-3]
+[INFO] [segment_navigation-2]: sending signal 'SIGINT' to process[segment_navigation-2]
+[INFO] [sim_executor-1]: sending signal 'SIGINT' to process[sim_executor-1]
+[INFO] [task_manager-3]: process has finished cleanly [pid 3494527]
+[INFO] [segment_navigation-2]: process has finished cleanly [pid 3494525]
+[INFO] [sim_executor-1]: process has finished cleanly [pid 3494523]

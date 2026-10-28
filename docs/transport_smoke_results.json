@@ -1,0 +1,9 @@
+[
+  {
+    "case": "transport_timeout",
+    "passed": true,
+    "elapsed_seconds": 5.713,
+    "expected_error": "ACTION_TRANSPORT_TIMEOUT",
+    "outcome_unknown_and_new_task_rejected": true
+  }
+]

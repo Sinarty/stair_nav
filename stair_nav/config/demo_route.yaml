@@ -1,0 +1,105 @@
+# SYNTHETIC SOFTWARE DEMO ONLY. These coordinates have not been validated on a real map.
+frame: map
+reference_point: ground_projection
+control_period: 0.05
+command_ttl: 0.2
+task_transport_timeout: 5.0
+sequence: [AB, BC, CD]
+defaults:
+  allowed_modes: [stair, flat]
+  required_capabilities: [stair_motion, stair_yaw_correction]
+  tracking:
+    lookahead: 0.45
+    max_vx: 0.65
+    max_wz: 1.0
+    max_accel: 0.8
+    max_angular_accel: 1.8
+    slowdown_distance: 0.7
+    min_vx: 0.04
+    max_cross_track: 0.55
+    max_height_error: 0.35
+    match_backtrack: 0.15
+    match_forward: 1.0
+    allow_turn_in_place: false
+    allow_reverse: false
+    allow_stair_correction: true
+    heading_stop_threshold: 1.15
+  planning:
+    # Synthetic surveyed entry neighborhood only; real route needs measured clearance.
+    entry_corridor_confirmed: true
+    max_jump: 0.85
+    join_xy: 0.22
+    join_z: 0.15
+    inflation_radius: 0.12
+    unknown_is_obstacle: true
+    timeout: 2.0
+  timeouts:
+    ready: 3.0
+    execution: 45.0
+    pose: 0.5
+    status: 0.5
+    arrival: 6.0
+nodes:
+  A:
+    position: [0.0, 0.0, 0.0]
+    yaw: 0.0
+    arrival: {xy: 0.12, z: 0.12, yaw: 0.15, progress: 0.97, confirm_seconds: 0.35, require_exit: false, require_stable: true, required_mode: flat}
+  B:
+    position: [3.0, 0.0, 1.0]
+    yaw: 0.0
+    arrival: {xy: 0.12, z: 0.12, yaw: 0.15, progress: 0.97, confirm_seconds: 0.35, require_exit: true, require_stable: true, required_mode: flat}
+  C:
+    position: [6.0, 0.0, 2.0]
+    yaw: 0.0
+    arrival: {xy: 0.12, z: 0.12, yaw: 0.15, progress: 0.97, confirm_seconds: 0.35, require_exit: true, require_stable: true, required_mode: flat}
+  D:
+    position: [9.0, 0.0, 2.0]
+    yaw: 0.0
+    arrival: {xy: 0.14, z: 0.12, yaw: 0.18, progress: 0.97, confirm_seconds: 0.35, require_exit: false, require_stable: true, required_mode: flat}
+segments:
+  AB:
+    start: A
+    end: B
+    kind: stair
+    platform_id: stair_01
+    backend: preset_path
+    path_file: flight_ab.yaml
+    mode: stair
+  BC:
+    start: B
+    end: C
+    kind: stair
+    platform_id: stair_12
+    backend: preset_path
+    path_file: flight_bc.yaml
+    mode: stair
+  CD:
+    start: C
+    end: D
+    kind: platform
+    platform_id: upper_platform
+    backend: grid_astar
+    grid_file: upper_platform.yaml
+    mode: flat
+    required_capabilities: [turn_in_place]
+    tracking:
+      max_vx: 0.5
+      lookahead: 0.35
+      max_cross_track: 0.7
+      allow_turn_in_place: true
+      allow_stair_correction: false
+regions:
+  - {id: lower_landing, kind: platform, center: [0.15, 0.0, 0.0], size: [0.7, 1.2, 0.06]}
+  - {id: stair_01, kind: stair, center: [1.45, 0.0, 0.5], size: [1.9, 0.8, 1.0]}
+  - {id: middle_landing, kind: platform, center: [3.0, 0.0, 1.0], size: [1.2, 1.2, 0.06]}
+  - {id: stair_12, kind: stair, center: [4.45, 0.0, 1.5], size: [1.9, 0.8, 1.0]}
+  - {id: upper_platform, kind: platform, center: [7.65, 0.0, 2.0], size: [4.1, 2.8, 0.06]}
+simulation:
+  initial_node: A
+  hold_delay: 0.25
+  stable_delay: 0.25
+  exit_margin: 0.35
+  capabilities: [stair_motion, stair_yaw_correction, turn_in_place]
+  supported_modes: [stair, flat]
+  # Height is sampled from these synthetic profiles using integrated XY.
+  profiles: {AB: flight_ab.yaml, BC: flight_bc.yaml}
