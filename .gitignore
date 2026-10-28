@@ -1,9 +1,66 @@
+# ROS 2 / colcon 构建与运行产物
 .colcon/
 build/
 install/
 log/
+.ros/
+
+# Python 缓存、打包和虚拟环境
 __pycache__/
-.pytest_cache/
+*.py[cod]
 *.egg-info/
-*.pyc
-.vscode/browse.vc.db*
+.eggs/
+dist/
+.venv/
+venv/
+
+# 测试、静态检查与覆盖率缓存
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# 普通运行日志；保留 docs 中的交付验证日志
+*.log
+*.log.*
+!docs/**/*.log
+
+# ROS 录包数据
+rosbag2_*/
+*.bag
+*.bag.active
+*.db3
+*.db3-shm
+*.db3-wal
+*.mcap
+
+# VS Code 仅保留可共享配置，其余索引与缓存不入库
+/.vscode/*
+!/.vscode/settings.json
+!/.vscode/c_cpp_properties.json
+!/.vscode/extensions.json
+!/.vscode/launch.json
+!/.vscode/tasks.json
+.idea/
+
+# 本地环境与凭据；保留环境变量示例
+.env
+.env.*
+!.env.example
+!.env.sample
+/.aws/
+
+# 编辑器备份与系统临时文件
+*~
+*.swp
+*.swo
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+Desktop.ini
