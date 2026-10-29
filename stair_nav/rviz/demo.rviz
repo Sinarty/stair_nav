@@ -1,6 +1,10 @@
 Panels:
   - Class: rviz_common/Displays
     Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+    Expanded:
+      - /Current View1
 Visualization Manager:
   Class: ""
   Global Options:
@@ -20,6 +24,16 @@ Visualization Manager:
       Namespaces: {}
       Topic:
         Value: /navigation/scene
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Depth: 1
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Astar occupancy and stair height cells
+      Enabled: true
+      Namespaces: {}
+      Topic:
+        Value: /simulation/terrain_grid
         Reliability Policy: Reliable
         Durability Policy: Transient Local
         History Policy: Keep Last
@@ -81,8 +95,8 @@ Visualization Manager:
         History Policy: Keep Last
         Depth: 5
     - Class: rviz_default_plugins/Map
-      Name: Synthetic upper platform occupancy
-      Enabled: true
+      Name: Compatibility platform occupancy
+      Enabled: false
       Alpha: 0.65
       Color Scheme: map
       Draw Behind: false
@@ -92,14 +106,25 @@ Visualization Manager:
         Durability Policy: Transient Local
         History Policy: Keep Last
         Depth: 1
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 12
-      Focal Point: {X: 4.5, Y: 0, Z: 1}
-      Pitch: 0.55
+      Name: Current View
+      Distance: 13
+      Focal Point: {X: -1, Y: 2.8, Z: 1}
+      Pitch: 0.65
       Yaw: 0.9
       Target Frame: map
 Window Geometry:
+  Hide Left Dock: false
+  Hide Right Dock: false
+  Views:
+    collapsed: false
   Width: 1280
   Height: 800

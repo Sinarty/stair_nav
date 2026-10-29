@@ -73,7 +73,7 @@ def validate_route(route):
         previous = seg['end']
     for sid in route['segments']:
         seg = segment_config(route, sid)
-        check(seg['backend'] in ('preset_path', 'grid_astar'), f'{sid}: unknown backend')
+        check(seg['backend'] in ('preset_path', 'grid_astar', 'height_grid_astar'), f'{sid}: unknown backend')
         check(seg['kind'] in ('stair', 'platform'), f'{sid}: unknown kind')
         check(seg['mode'] in seg['allowed_modes'], f'{sid}: mode must be allowed')
         arrival_mode = nodes[seg['end']]['arrival'].get('required_mode', '')
@@ -84,6 +84,12 @@ def validate_route(route):
                   f'{sid}: A* requires an explicit single platform')
             check(abs(nodes[seg['start']]['position'][2] - nodes[seg['end']]['position'][2])
                   <= nodes[seg['end']]['arrival']['z'], f'{sid}: A* cannot span floors')
+        if seg['backend'] == 'height_grid_astar':
+            check(seg['kind'] == 'stair' and bool(seg.get('platform_id')) and bool(seg.get('grid_file')),
+                  f'{sid}: height-grid A* requires an explicit stair surface')
+            step = seg['planning'].get('max_step_height', .2)
+            check(isinstance(step, (int, float)) and not isinstance(step, bool) and
+                  math.isfinite(step) and step > 0, f'{sid}: invalid max_step_height')
         for key in ('lookahead', 'max_vx', 'max_wz', 'max_accel', 'max_angular_accel',
                     'slowdown_distance', 'max_cross_track', 'max_height_error',
                     'match_forward', 'heading_stop_threshold'):

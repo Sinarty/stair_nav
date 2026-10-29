@@ -3,13 +3,13 @@
 
 ## 分段路径规划与跟踪：ROS 2 Humble 首版
 
-本工程实现固定巡检路线 **A→B→C→D**，通过一个可复用的段导航 Action 依次执行 AB、BC、CD。它包含实际可运行的规划、实时位姿闭环跟踪、到达确认、任务调度、结构化运控接口和模拟执行端。算法核心不依赖 ROS；不依赖 Nav2 或行为树。
+本工程的默认 demo 按示意图执行 **O→A→B→C→D**：O 是机器人初始原点，先接近 A，AB 上楼梯、BC 通过平台通道、CD 再上楼梯，全程不下楼。各段复用同一导航 Action 和任务状态机，包含规划、实时位姿闭环跟踪、到达确认、结构化运控接口和模拟执行端。算法核心不依赖 ROS；不依赖 Nav2 或行为树。
 
-**默认数据全部为合成场景。** AB、BC 是两段带平台的人工三维楼梯参考路径；CD 在二层平台占据栅格上绕障规划。示例没有证明任何真实点云地图上的可通行性。默认启动不会加载真实机器人 SDK。
+**默认数据全部为合成场景。** O→A 和 BC 使用平台占据栅格 A*；AB、CD 使用包含逐格高度的楼梯栅格 A*，每段六级台阶、各上升 1.2m。规划和 RViz 读取同一份栅格数据。示例没有证明真实点云地图上的可通行性，默认启动不会加载真实机器人 SDK。
 
 实际执行的构建、测试、节点联调结论与复现方法见 [docs/VALIDATION.md](docs/VALIDATION.md)。纯核心演示可按下文命令生成本地 JSON 结果。
 
-两个包已完成构建；接近净空与派发前起点重判修复后的 210 项核心测试、39 项 ROS 回调测试和 13 个任务 Action 场景全部通过。任务状态机的接口、状态转移表、故障复位与启动方法见 [docs/MISSION.md](docs/MISSION.md)，前端字段与事件约定见 [前端协议](docs/FRONTEND.md)，本次执行结果见 [验证记录](docs/VALIDATION.md)。RViz 历史实拍见 [演示截图](docs/rviz_demo.png)。
+已通过 231 项核心测试、39 项 ROS 回调测试和 3 项栅格可视化消息测试。新默认 demo 经真实 ROS 节点从 O 完整运行至 D，出现 APPROACHING_START 并最终 SUCCEEDED，约 58 秒；旧地图与回归场景保留。任务接口和前端字段沿用已有协议，下文说明地图、模式与启动方法。
 
 ## 1. 工程结构与职责
 
@@ -18,7 +18,7 @@ stair_nav/                          # ament_python 包
   stair_nav/core/
     models.py                       # 位姿、路径、指令、反馈、错误等纯数据
     config.py                       # YAML 读取、继承合并与校验
-    planning.py                     # 统一后端、preset_path、grid_astar
+    planning.py                     # preset_path、grid_astar、height_grid_astar
     tracking.py                     # 三维匹配 + Pure Pursuit + 指令限制
     engine.py                       # 同一套段执行状态机、规划工作线程
     mission.py                      # 无 ROS 的任务状态机、事件与副作用
@@ -70,7 +70,7 @@ source /tmp/stair_nav_mission_install/setup.bash
 ros2 launch stair_nav demo.launch.py
 ```
 
-这条演示启动命令会启动三个节点及 RViz，自动执行 AB→BC→CD。无图形界面时使用：
+这条演示启动命令会启动三个节点及 RViz。机器人从 O=(0,0,0) 出发，先通过 A* 导航至 A 并进入 `APPROACHING_START`，再执行 AB 上楼→BC 通道→CD 上楼。默认 `initial_pose=[]` 使用地图中的初始节点 O，也可显式覆盖模拟位姿。无图形界面时使用：
 
 ```bash
 ros2 launch stair_nav demo.launch.py rviz:=false
@@ -103,7 +103,7 @@ ros2 topic echo /mission/status --qos-durability transient_local
 ros2 service call /task_manager/cancel std_srvs/srv/Trigger '{}'
 ```
 
-原 `/task_manager/start` Trigger 和 `/task/status` SegmentStatus 保持兼容；新客户端使用任务 Action、`/mission/status` 当前快照和 `/mission/events` 逐转换事件。启动参数与前端字段约定见 [前端协议](docs/FRONTEND.md)。段执行器也可单独被其他任务调度器调用，但不能与活动任务并行争用；下面的执行 ID 只可使用一次：
+原 `/task_manager/start` Trigger 和 `/task/status` SegmentStatus 保持兼容；新客户端使用任务 Action、`/mission/status` 当前快照和 `/mission/events` 逐转换事件。段执行器也可单独被其他任务调度器调用，但不能与活动任务并行争用。若要直接调用下面的 AB，应先用 `autostart:=false initial_pose:='[-4.0, -0.5, 0.0, 1.5707963267948966]'` 启动 demo，使机器人从 A 对准楼梯后出发；下面的执行 ID 只可使用一次：
 
 ```bash
 ros2 action send_goal /navigate_segment stair_nav_interfaces/action/NavigateSegment \
@@ -112,7 +112,7 @@ ros2 action send_goal /navigate_segment stair_nav_interfaces/action/NavigateSegm
 
 Action 客户端优先使用目标句柄取消。使用旧 cancel 服务取消 Action 任务时，语义结果 `state=CANCELED`，ROS 目标协议状态为 ABORTED；通过 Action 取消握手则为 CANCELED。已派发的任务均需等待下游终态、保持、稳定和释放；派发前取消没有取得控制权，不伪造 hold_confirmed。
 
-任务默认配置 `approach_segment: APPROACH_A`：已在 A 的位置、高度、朝向容差内则跳过；否则使用实时定位在下层平台栅格中规划至 A，确认到达后再执行三段主路线。接近时 `state=APPROACHING_START`、`segment_index=0`，不增加主路线计数。可用 `ros2 launch stair_nav demo.launch.py autostart:=false initial_pose:='[-1.0, 0.4, 0.0, 0.6]'` 测试不同起点。地图和初始位姿均为软件模拟配置，真实部署需提供站点平台地图。任务结束不自动回 A，当前接近地图不跨楼层。任务节点重启不续跑旧任务，先查询下游状态；执行状态不明时的复位条件见 [任务文档](docs/MISSION.md)。
+任务默认配置 `approach_segment: APPROACH_A`：已在 A 的位置、高度、朝向容差内则跳过；否则从实时定位规划至 A，确认到达后再执行三段主路线。接近时 `state=APPROACHING_START`、`segment_index=0`，不增加主路线计数。可用 `autostart:=false` 等待前端手动触发；启动 ID 仍为 `inspection_demo`。地图和初始位姿均为软件模拟配置，真实部署需提供站点地图。任务结束不自动回 O/A，接近 A 的平台图也不跨楼层。任务节点重启不续跑旧任务，先查询下游状态。
 
 ### 无 ROS 闭环与回归测试
 
@@ -157,7 +157,17 @@ python3 tools/mission_smoke.py --output-dir /tmp/stair_nav_mission_smoke
 
 ## 4. 路线、参考路径与单平台栅格
 
-主配置为 [stair_nav/config/demo_route.yaml](stair_nav/config/demo_route.yaml)。默认值 `defaults` 与每段配置递归合并，段配置覆盖默认值。所有相对文件路径均相对主路线 YAML 所在目录解析。
+默认主配置为 [staircase_demo_route.yaml](stair_nav/config/staircase_demo_route.yaml)，任务配置为 [staircase_demo_mission.yaml](stair_nav/config/staircase_demo_mission.yaml)。默认值 `defaults` 与每段配置递归合并，段配置覆盖默认值。所有相对文件路径均相对主路线 YAML 所在目录解析。旧直线场景 [demo_route.yaml](stair_nav/config/demo_route.yaml) 和对应任务配置仍供回归测试使用。
+
+| 点 | XYZ（米） | 下一段 |
+|---|---|---|
+| O | (0, 0, 0) | 向左下接近 A |
+| A | (-4, -0.5, 0) | 向北上楼 4m，高差 1.2m |
+| B | (-4, 3.5, 1.2) | 向东走平台通道 6m |
+| C | (2, 3.5, 1.2) | 向北上楼 3m，高差 1.2m |
+| D | (2, 6.5, 2.4) | 完成任务 |
+
+楼梯和通道尽量沿中轴直行，转角由平台段完成。A/C 是上楼入口，使用更精确的到达条件 `xy=0.04m`、`yaw=0.05rad`，避免进入台阶后再大角度转向。
 
 | 配置区域 | 主要字段与含义 |
 |---|---|
@@ -172,7 +182,7 @@ python3 tools/mission_smoke.py --output-dir /tmp/stair_nav_mission_smoke
 | `regions` | 供 RViz 显示的平台/楼梯区域；不构成碰撞或可通行性证明 |
 | `simulation` | 初始节点、剖面、确认延迟、模拟能力；真实导航启动不使用模拟节点 |
 
-示例 A=(0,0,0)、B=(3,0,1)、C=(6,0,2)、D=(9,0,2)，朝向均为 0。AB/BC 的尾部各保留平台剖面；B/C 需要几何条件、出梯、稳定、HOLD 和 `flat` 模式全部确认后才成功。
+新场景 A/B/C/D 的目标朝向均为北向 pi/2。B/D 是楼梯出口，需要几何条件、出梯、稳定、HOLD 和 `flat` 模式全部确认；C 是平台通道终点，在此对准下一段楼梯。
 
 ### `preset_path`
 
@@ -190,7 +200,7 @@ points:
   - {position: [3.0, 0.0, 1.0], phase: platform, mode: stair}
 ```
 
-后端校验空路径、非有限数值、重复点、超限跳变、无法用水平速度跟踪的纯竖直边、终点与节点不一致以及框架/参考点不一致。阶段和模式保存在内部 `Waypoint` 中，当前阶段会出现在结构化状态和指令里；标准 `nav_msgs/Path` 仅承载几何路径。
+该后端仍供旧场景和已验证的预设通道使用，新默认 demo 的 AB/CD 已改用下述高度栅格 A*。后端校验空路径、非有限数值、重复点、超限跳变、无法用水平速度跟踪的纯竖直边、终点与节点不一致以及框架/参考点不一致。阶段和模式保存在内部 `Waypoint` 中，当前阶段会出现在结构化状态和指令里；标准 `nav_msgs/Path` 仅承载几何路径。
 
 每段都以当前实时位姿规划。预设路径只接受配置的入口邻域 `join_xy/join_z` 内的接入；非零偏移还需要 `entry_corridor_confirmed: true`，表示外部已经确认该小范围入口走廊允许接入。返回的参考路径保留原始几何，不会随意补一条直线。范围超限返回 `JOIN_OUT_OF_RANGE`，缺少可行性确认返回 `JOIN_UNVERIFIED`。示例的 true 只描述合成场景；真实项目需要现场几何、机体包络和策略能力验证后设置。
 
@@ -212,7 +222,11 @@ data:  # height 行，每行 width 个值；第 0 行对应最小 y
 
 `origin` 是左下角网格边界，单元中心为 `origin + (index+0.5)*resolution`。占据值 `0..100`，未知为 `-1`；默认占据阈值 50，未知不可通行。规划按机器人/安全余量配置进行保守障碍膨胀，检查起终点、地图边界和平台高度，不允许对角线从障碍夹角穿过。默认不简化路径；启用 `planning.simplify` 后每条简化边仍必须通过膨胀地图的连续线段碰撞检查。最终返回路径也检查碰撞。
 
-当前规划接口读取 YAML 文件，不直接订阅在线地图，也不直接读取点云。真实点云转换的接入口是生成同格式的**每平台栅格**：由建图成员明确提供平台 ID、坐标系、测量高度、有效范围、分辨率、占据与未知定义，再输出与导航节点一致的文件。楼梯继续使用单独核实的三维参考路径。不要把整栋建筑点云压到一张二维图，也不要在数据不足时猜楼层切片高度或净空参数。倾斜/非平的平台需要后续扩展模型。
+### `height_grid_astar`
+
+[AB 楼梯](stair_nav/config/stair_ab_grid.yaml) 与 [CD 楼梯](stair_nav/config/stair_cd_grid.yaml) 除 `data` 占据矩阵外，还包含同尺寸的 `heights` 地面高度和 `phases` 阶段矩阵。分辨率为 0.1m，六级台阶每级 0.2m。A* 以相邻支撑格的三维距离为代价，限制最大步高，禁止斜跨高度变化的台阶，返回有 XYZ 高度的路径；不会用一条斜线替代整段楼梯。普通 `grid_astar` 会拒绝高度图，避免将楼梯错误压平。
+
+地图和节点由 [generate_staircase_demo.py](tools/generate_staircase_demo.py) 生成。调整演示尺寸后可重新生成；运行 `python3 tools/generate_staircase_demo.py --help` 查看长度、高差、步数和分辨率参数。当前是每格一个支撑高度的 2.5D 模型，仍读取 YAML，不直接读取点云或支持同一 XY 上的重叠楼层；真实地图需要明确可通行表面、机体净空及动作约束。
 
 ## 5. 跟踪与到达判断
 
@@ -268,7 +282,7 @@ Pure Pursuit 在当前段的路径上进行三维线段投影，匹配评分包�
 | `/navigation/status` | `SegmentStatus` | Reliable、TransientLocal、KeepLast(1)，当前段执行快照，含误差、进度和错误 |
 | `/task/status` | `SegmentStatus` | Reliable、TransientLocal、KeepLast(1)，兼容旧客户端的任务/段快照 |
 | `/navigation/reference_path` | `nav_msgs/Path` | Reliable、TransientLocal、KeepLast(1)，当前几何参考路径；新目标开始时先清空旧路径 |
-| `/navigation/reference_point` | `geometry_msgs/PoseStamped` | Reliable、TransientLocal、KeepLast(1)，当前前视参考点，供可视化 |
+| `/navigation/reference_point` | `geometry_msgs/PoseStamped` | Reliable、TransientLocal、KeepLast(1)，当前位置前方的跟踪参考点；朝向为跟踪器期望的平面朝向，到点对齐时为目标朝向，供可视化 |
 | `/navigation/scene` | `visualization_msgs/MarkerArray` | Reliable、TransientLocal、KeepLast(1)，节点与平台/楼梯区域 |
 | `/simulation/trajectory` | `nav_msgs/Path` | Reliable、TransientLocal、KeepLast(1)，模拟实际轨迹，最多 4000 个采样点 |
 | `/simulation/platform_grid` | `nav_msgs/OccupancyGrid` | Reliable、TransientLocal、KeepLast(1)，合成平台原始栅格可视化 |
@@ -288,11 +302,13 @@ Pure Pursuit 在当前段的路径上进行三维线段投影，匹配评分包�
 
 ## 8. 模拟、可视化与故障注入
 
-模拟端只积分收到且通过校验、未过期的实际 `vx/wz`；不把 XY/yaw 推到目标点。高度由当前段的已配置合成剖面，按积分后的 XY 和历史位置采样，平台使用显式高度。剖面是地形约束模型，不能用于证明真实定位高度误差、台阶接触、打滑、爬楼动力学或保持安全性。
+模拟端只积分收到且通过校验、未过期的实际 `vx/wz`；不把 XY/yaw 推到目标点。新场景楼梯高度按实际积分 XY 从同一份高度栅格采样，平台段保持当前高度；旧场景仍支持剖面采样。HOLD 不会把错误高度的机器人拉到地面。地形约束模型不能用于证明真实定位高度误差、台阶接触、打滑、爬楼动力学或保持安全性。
 
-模拟 ready、模式、出梯、稳定和延迟 HOLD 确认仅用于软件协议联调。`missing_exit` 让几何到达仍无法成功，`unstable` 则阻断稳定确认。退出确认使用配置的剖面末端距离，不代表真实机体包络已出梯。
+模拟 ready、模式、出梯、稳定和延迟 HOLD 确认仅用于软件协议联调。`missing_exit` 让几何到达仍无法成功，`unstable` 则阻断稳定确认。高度图楼梯的退出确认使用目标附近的位置与高度，旧剖面用末端距离；均不代表真实机体包络已出梯。
 
-RViz 中显示绿色任务节点、半透明平台/楼梯区域、青色当前参考路径、黄色实际轨迹、红色参考点、绿色实时定位，以及二层平台占据栅格。Fixed Frame 为 `map`；若使用其他路线 frame，需相应修改 RViz 配置。上层栅格的高度来自 `height_z`，不是把所有楼层合成一张图。
+RViz 中显示 O/A/B/C/D、青色当前参考路径、黄色实际轨迹、红色参考点和绿色实时定位。`/simulation/terrain_grid` 从规划使用的同一地图生成四段可通行格面与台阶实体，楼梯为橙色、平台为蓝色；每格网格线与实际高度均可见。占据边界保留在规划地图中，显示时隐藏深红色边界块。普通平台还分别发布 `/simulation/grids/APPROACH_A` 和 `/simulation/grids/BC`。Fixed Frame 为 `map`，默认相机覆盖完整图形。
+
+默认选中 `Move Camera`，使用 `Orbit` 三维透视相机。鼠标左键拖动旋转视角，中键或 `Shift + 左键` 拖动平移，滚轮或右键拖动缩放；`Shift + 右键` 拖动可上下移动观察中心。`Views` 面板可直接调整 Pitch、Yaw、Distance 和 Focal Point，关闭后可从 `Panels → Views` 再次打开。
 
 故障开关可通过 SetBool 随时修改，false 表示恢复该输入；故障导致任务终态后不会自动续跑：
 

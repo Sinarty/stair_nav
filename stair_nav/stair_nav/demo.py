@@ -3,6 +3,7 @@ import argparse
 from concurrent.futures import Future
 from dataclasses import asdict
 import json
+import math
 from pathlib import Path
 
 from .core.config import load_route
@@ -69,7 +70,21 @@ class Harness:
 
     def run_sequence(self, hook=None):
         results = []
-        for segment_id in self.route['sequence']:
+        approach_result = None
+        approach = self.route.get('approach_segment')
+        if approach:
+            first = self.route['segments'][self.route['sequence'][0]]
+            start = self.route['nodes'][first['start']]
+            pose, target, arrival = self.sim.pose, start['position'], start['arrival']
+            yaw_error = math.atan2(math.sin(pose.yaw-start['yaw']), math.cos(pose.yaw-start['yaw']))
+            at_start = (math.hypot(pose.x-target[0], pose.y-target[1]) <= arrival['xy'] and
+                        abs(pose.z-target[2]) <= arrival['z'] and abs(yaw_error) <= arrival['yaw'])
+            if not at_start:
+                self.start(approach)
+                approach_result = asdict(self.until_terminal(hook=hook).status)
+        sequence = self.route['sequence'] if (approach_result is None or
+                    approach_result['state'] == State.SUCCEEDED) else []
+        for segment_id in sequence:
             self.start(segment_id)
             result = self.until_terminal(hook=hook)
             results.append(asdict(result.status))
@@ -79,15 +94,16 @@ class Harness:
                     and all(s['state'] == State.SUCCEEDED for s in results),
                     simulated_seconds=round(self.now, 3),
                     valid_command_samples=self.command_count,
-                    final_pose=asdict(self.sim.pose), results=results, transitions=self.events)
+                    final_pose=asdict(self.sim.pose), approach_result=approach_result,
+                    results=results, transitions=self.events)
 
 
 def default_route():
-    source = Path(__file__).resolve().parents[1] / 'config' / 'demo_route.yaml'
+    source = Path(__file__).resolve().parents[1] / 'config' / 'staircase_demo_route.yaml'
     if source.exists():
         return str(source)
     from ament_index_python.packages import get_package_share_directory
-    return str(Path(get_package_share_directory('stair_nav')) / 'config' / 'demo_route.yaml')
+    return str(Path(get_package_share_directory('stair_nav')) / 'config' / 'staircase_demo_route.yaml')
 
 
 def main(args=None):

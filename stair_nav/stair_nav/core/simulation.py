@@ -11,6 +11,7 @@ import yaml
 
 from .config import segment_config
 from .models import Command, MotionFeedback, NavError, Pose
+from .planning import OccupancyGrid
 
 
 class Simulator:
@@ -40,7 +41,13 @@ class Simulator:
         self._turn = 0.0
         self._profile_s = 0.0
         self._profiles = {}
+        self._height_grids = {}
         base = Path(route.get('_base_dir', '.'))
+        for segment_id, segment in self._segments.items():
+            if segment['backend'] == 'height_grid_astar':
+                data = yaml.safe_load((base / segment['grid_file']).read_text())
+                options = dict(segment.get('planning', {}), inflation_radius=0.)
+                self._height_grids[segment_id] = OccupancyGrid.from_mapping(data, options)
         for segment_id, filename in self.settings.get('profiles', {}).items():
             data = yaml.safe_load((base / filename).read_text())
             points = [tuple(p['position']) for p in data['points']]
@@ -109,6 +116,13 @@ class Simulator:
         return True
 
     def _profile_height(self, segment_id):
+        surface = self._height_grids.get(segment_id)
+        if surface is not None:
+            # HOLD must not pull an initially misplaced robot onto a floor.
+            height = surface.height_at(self.pose.x, self.pose.y)
+            if self._speed == 0 or height is None or abs(height-self.pose.z) > surface.max_step_height+1e-9:
+                return self.pose.z
+            return height
         profile = self._profiles.get(segment_id)
         if profile is None:
             # Flat motion cannot change floors, including while holding after
@@ -182,6 +196,11 @@ class Simulator:
             points, cumulative = profile
             exit_confirmed = bool(cumulative[-1]-self._profile_s <= self.settings.get('exit_margin', .35)
                                   and abs(self.pose.z-points[-1][2]) <= .12)
+        if segment_id in self._height_grids:
+            segment = self._segments[segment_id]
+            goal = self.route['nodes'][segment['end']]['position']
+            exit_confirmed = bool(math.hypot(self.pose.x-goal[0], self.pose.y-goal[1]) <=
+                                  self.settings.get('exit_margin', .35) and abs(self.pose.z-goal[2]) <= .12)
         exit_confirmed = exit_confirmed and not self.faults['missing_exit']
         fault_code = 'SIM_EXECUTION_FAULT' if self.faults['execution_fault'] else ''
         return MotionFeedback(

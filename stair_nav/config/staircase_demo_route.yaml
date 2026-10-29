@@ -1,0 +1,159 @@
+# SYNTHETIC DEMO ONLY. Editable dimensions; not a surveyed robot map.
+frame: map
+reference_point: ground_projection
+control_period: 0.05
+command_ttl: 0.2
+task_transport_timeout: 5.0
+sequence: [AB, BC, CD]
+approach_segment: APPROACH_A
+defaults:
+  allowed_modes: [stair, flat]
+  required_capabilities: [stair_motion, stair_yaw_correction]
+  tracking:
+    lookahead: 0.25
+    max_vx: 0.45
+    max_wz: 0.8
+    max_accel: 0.6
+    max_angular_accel: 1.6
+    slowdown_distance: 0.6
+    min_vx: 0.025
+    max_cross_track: 0.3
+    max_height_error: 0.3
+    match_backtrack: 0.15
+    match_forward: 0.7
+    allow_turn_in_place: false
+    allow_reverse: false
+    allow_stair_correction: true
+    heading_stop_threshold: 1.0
+  planning:
+    max_jump: 0.5
+    join_xy: 0.22
+    join_z: 0.15
+    inflation_radius: 0.12
+    unknown_is_obstacle: true
+    timeout: 3.0
+    max_step_height: 0.2
+  timeouts:
+    ready: 3.0
+    execution: 50.0
+    pose: 0.5
+    status: 0.5
+    arrival: 6.0
+nodes:
+  O:
+    position: [0.0, 0.0, 0.0]
+    yaw: -3.017237659043032
+    arrival:
+      xy: 0.12
+      z: 0.12
+      yaw: 0.15
+      progress: 0.97
+      confirm_seconds: 0.35
+      require_exit: false
+      require_stable: true
+      required_mode: flat
+  A:
+    position: [-4.0, -0.5, 0.0]
+    yaw: 1.5707963267948966
+    arrival:
+      xy: 0.04
+      z: 0.12
+      yaw: 0.05
+      progress: 0.97
+      confirm_seconds: 0.35
+      require_exit: false
+      require_stable: true
+      required_mode: flat
+  B:
+    position: [-4.0, 3.5, 1.2]
+    yaw: 1.5707963267948966
+    arrival:
+      xy: 0.12
+      z: 0.12
+      yaw: 0.15
+      progress: 0.97
+      confirm_seconds: 0.35
+      require_exit: true
+      require_stable: true
+      required_mode: flat
+  C:
+    position: [2.0, 3.5, 1.2]
+    yaw: 1.5707963267948966
+    arrival:
+      xy: 0.04
+      z: 0.12
+      yaw: 0.05
+      progress: 0.97
+      confirm_seconds: 0.35
+      require_exit: false
+      require_stable: true
+      required_mode: flat
+  D:
+    position: [2.0, 6.5, 2.4]
+    yaw: 1.5707963267948966
+    arrival:
+      xy: 0.12
+      z: 0.12
+      yaw: 0.15
+      progress: 0.97
+      confirm_seconds: 0.35
+      require_exit: true
+      require_stable: true
+      required_mode: flat
+segments:
+  APPROACH_A:
+    kind: platform
+    backend: grid_astar
+    mode: flat
+    allowed_modes: &id001 [flat]
+    required_capabilities: &id002 [turn_in_place]
+    tracking: &id003
+      max_vx: 0.45
+      allow_turn_in_place: true
+      allow_stair_correction: false
+    planning: &id004
+      simplify: true
+    start: A
+    end: A
+    platform_id: origin_platform
+    grid_file: origin_platform.yaml
+  AB:
+    kind: stair
+    backend: height_grid_astar
+    mode: stair
+    allowed_modes: &id005 [stair, flat]
+    required_capabilities: &id006 [stair_motion, stair_yaw_correction]
+    start: A
+    end: B
+    platform_id: stair_ab
+    grid_file: stair_ab_grid.yaml
+  BC:
+    kind: platform
+    backend: grid_astar
+    mode: flat
+    allowed_modes: *id001
+    required_capabilities: *id002
+    tracking: *id003
+    planning: *id004
+    start: B
+    end: C
+    platform_id: corridor_bc
+    grid_file: corridor_bc.yaml
+  CD:
+    kind: stair
+    backend: height_grid_astar
+    mode: stair
+    allowed_modes: *id005
+    required_capabilities: *id006
+    start: C
+    end: D
+    platform_id: stair_cd
+    grid_file: stair_cd_grid.yaml
+simulation:
+  initial_node: O
+  hold_delay: 0.25
+  stable_delay: 0.25
+  exit_margin: 0.35
+  capabilities: [stair_motion, stair_yaw_correction, turn_in_place]
+  supported_modes: [stair, flat]
+  profiles: {}

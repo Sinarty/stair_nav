@@ -21,12 +21,12 @@ def generate_launch_description():
     sim_parameters.update({name: ParameterValue(LaunchConfiguration(name), value_type=bool)
                            for name in faults})
     return LaunchDescription([
-        DeclareLaunchArgument('route_file', default_value=str(share/'config'/'demo_route.yaml')),
-        DeclareLaunchArgument('mission_file', default_value=str(share/'config'/'inspection_mission.yaml')),
+        DeclareLaunchArgument('route_file', default_value=str(share/'config'/'staircase_demo_route.yaml')),
+        DeclareLaunchArgument('mission_file', default_value=str(share/'config'/'staircase_demo_mission.yaml')),
         DeclareLaunchArgument('rviz', default_value='true'),
         DeclareLaunchArgument('autostart', default_value='true'),
         DeclareLaunchArgument('initial_pose', default_value='[]',
-                             description='Simulation-only [x, y, z, yaw]; [] uses route configuration'),
+                             description='Simulation-only [x, y, z, yaw]; [] starts at route origin O'),
         *[DeclareLaunchArgument(name, default_value='false') for name in faults],
         Node(package='stair_nav', executable='sim_executor', output='screen',
              parameters=[sim_parameters]),

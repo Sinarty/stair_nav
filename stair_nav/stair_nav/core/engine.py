@@ -9,7 +9,7 @@ from enum import Enum
 import math
 from threading import Event
 from .config import segment_config
-from .models import Command, ExecutionOutput, NavError, Status
+from .models import Command, ExecutionOutput, NavError, Pose, Status, wrap_angle
 from .planning import plan
 from .tracking import PurePursuit
 
@@ -165,7 +165,12 @@ class SegmentExecutor:
         self.status.heading_error = result.heading_error
         self.status.geometry_reached = result.geometry_reached
         self.status.phase = result.phase
-        self._target = result.target
+        # Capture the tracking heading in the map frame with the reference
+        # position; a bare Waypoint would be displayed with a fixed yaw of zero.
+        self._target = Pose(
+            result.target.x, result.target.y, result.target.z,
+            wrap_angle(self.pose.yaw + result.heading_error),
+            self.pose.stamp, self.pose.frame)
 
     def tick(self, now, dt):
         vx = wz = 0.0

@@ -1,0 +1,21 @@
+# SYNTHETIC DEMO ONLY. Editable dimensions; not a surveyed robot map.
+route_id: inspection_demo
+route_file: staircase_demo_route.yaml
+sequence: [AB, BC, CD]
+approach_segment: APPROACH_A
+timeouts:
+  service: 5.0
+  ready: 5.0
+  acceptance: 3.0
+  execution: 55.0
+  confirmation: 8.0
+  feedback: 2.0
+  cancel_response: 3.0
+  cancel_terminal: 5.0
+  cleanup: 5.0
+readiness:
+  pose_max_age: 0.5
+  motion_max_age: 0.5
+  navigation_max_age: 1.0
+  require_start_node: true
+per_segment: {}

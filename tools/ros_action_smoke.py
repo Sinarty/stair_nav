@@ -31,7 +31,8 @@ def run_case(name, route, output_dir, domain):
     with log_file.open('w') as log:
         proc = subprocess.Popen(
             ['ros2', 'launch', 'stair_nav', 'demo.launch.py', 'rviz:=false',
-             'autostart:=false', f'route_file:={route}'],
+             'autostart:=false', 'initial_pose:=[]', f'route_file:={route}',
+             f'mission_file:={Path(__file__).resolve().parents[1]/"stair_nav/config/inspection_mission.yaml"}'],
             stdout=log, stderr=subprocess.STDOUT, env=env, start_new_session=True)
         rclpy.init()
         node = Node(f'ros_smoke_{name}')

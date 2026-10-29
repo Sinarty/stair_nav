@@ -1,0 +1,180 @@
+# SYNTHETIC DEMO ONLY. Editable dimensions; not a surveyed robot map.
+frame: map
+reference_point: ground_projection
+platform_id: stair_cd
+height_z: 1.2
+width: 16
+height: 42
+resolution: 0.1
+origin: [1.25, 2.95]
+data:
+- [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100]
+- [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+heights:
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+- [1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4]
+- [1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4]
+- [1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4]
+- [1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4]
+- [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6]
+- [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6]
+- [1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6]
+- [1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8]
+- [1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8]
+- [1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8]
+- [1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8]
+- [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+- [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+- [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+- [2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2]
+- [2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2]
+- [2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2]
+- [2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+- [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
+phases:
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry, entry,
+  entry, entry, entry, entry]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair, stair,
+  stair, stair, stair, stair]
+- [exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit,
+  exit, exit]
+- [exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit,
+  exit, exit]
+- [exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit,
+  exit, exit]
+- [exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit,
+  exit, exit]
+- [exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit, exit,
+  exit, exit]
+- [platform, platform, platform, platform, platform, platform, platform, platform,
+  platform, platform, platform, platform, platform, platform, platform, platform]
+- [platform, platform, platform, platform, platform, platform, platform, platform,
+  platform, platform, platform, platform, platform, platform, platform, platform]
+- [platform, platform, platform, platform, platform, platform, platform, platform,
+  platform, platform, platform, platform, platform, platform, platform, platform]
+- [platform, platform, platform, platform, platform, platform, platform, platform,
+  platform, platform, platform, platform, platform, platform, platform, platform]
+- [platform, platform, platform, platform, platform, platform, platform, platform,
+  platform, platform, platform, platform, platform, platform, platform, platform]
+- [platform, platform, platform, platform, platform, platform, platform, platform,
+  platform, platform, platform, platform, platform, platform, platform, platform]
+- [platform, platform, platform, platform, platform, platform, platform, platform,
+  platform, platform, platform, platform, platform, platform, platform, platform]
