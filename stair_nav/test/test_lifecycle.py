@@ -25,7 +25,7 @@ class ManualPlannerPool:
 
 @pytest.fixture
 def setup():
-    route = load_route(Path(__file__).resolve().parents[1]/'config'/'demo_route.yaml')
+    route = load_route(Path(__file__).resolve().parent/'fixtures'/'legacy'/'demo_route.yaml')
     pool = ManualPlannerPool()
     return route, pool, SegmentExecutor(route, planning_executor=pool)
 

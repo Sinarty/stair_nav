@@ -13,7 +13,7 @@ from stair_nav.demo import Harness
 
 @pytest.fixture
 def route():
-    return load_route(Path(__file__).resolve().parents[1] / 'config' / 'demo_route.yaml')
+    return load_route(Path(__file__).resolve().parent / 'fixtures' / 'legacy' / 'demo_route.yaml')
 
 
 def executing(harness, segment='AB'):

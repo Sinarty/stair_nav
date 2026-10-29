@@ -6,9 +6,9 @@ import json
 import math
 from pathlib import Path
 
-from .core.config import load_route
-from .core.engine import SegmentExecutor, State
-from .core.simulation import Simulator
+from ..core.config import load_route
+from ..core.engine import SegmentExecutor, State
+from .simulation import Simulator
 
 
 class InlineExecutor:
@@ -99,11 +99,11 @@ class Harness:
 
 
 def default_route():
-    source = Path(__file__).resolve().parents[1] / 'config' / 'staircase_demo_route.yaml'
+    source = Path(__file__).resolve().parent / 'config' / 'route.yaml'
     if source.exists():
         return str(source)
     from ament_index_python.packages import get_package_share_directory
-    return str(Path(get_package_share_directory('stair_nav')) / 'config' / 'staircase_demo_route.yaml')
+    return str(Path(get_package_share_directory('stair_nav')) / 'demo' / 'config' / 'route.yaml')
 
 
 def main(args=None):

@@ -11,7 +11,7 @@ import yaml
 from stair_nav.core.config import load_route, segment_config, validate_route
 from stair_nav.core.models import Command, NavError, Pose
 from stair_nav.core.planning import HeightGridAStarBackend, GridAStarBackend, OccupancyGrid
-from stair_nav.core.simulation import Simulator
+from stair_nav.demo.simulation import Simulator
 from stair_nav.demo import Harness
 
 
@@ -126,7 +126,7 @@ def test_flat_backend_cannot_silently_flatten_stair_heights(surface):
 
 
 def test_new_staircase_route_uses_supported_height_maps_and_rejects_invalid_step_setting():
-    route = load_route(Path(__file__).resolve().parents[1]/'config/staircase_demo_route.yaml')
+    route = load_route(Path(__file__).resolve().parents[1]/'stair_nav/demo/config/route.yaml')
     for sid in ('AB', 'CD'):
         assert segment_config(route, sid)['backend'] == 'height_grid_astar'
     invalid = deepcopy(route)
@@ -136,7 +136,7 @@ def test_new_staircase_route_uses_supported_height_maps_and_rejects_invalid_step
 
 
 def test_stair_hold_does_not_pull_an_initially_wrong_height_onto_the_surface():
-    route = load_route(Path(__file__).resolve().parents[1]/'config/staircase_demo_route.yaml')
+    route = load_route(Path(__file__).resolve().parents[1]/'stair_nav/demo/config/route.yaml')
     start = route['nodes']['A']['position']
     sim = Simulator(route, initial_pose=[*start[:2], 3., math.pi/2])
     command = Command(0., .2, 'task', 'run', 'AB', 'checking', 'stair', 'HOLD')
@@ -147,7 +147,7 @@ def test_stair_hold_does_not_pull_an_initially_wrong_height_onto_the_surface():
 
 
 def test_staircase_height_grids_close_the_production_control_loop():
-    route = load_route(Path(__file__).resolve().parents[1]/'config/staircase_demo_route.yaml')
+    route = load_route(Path(__file__).resolve().parents[1]/'stair_nav/demo/config/route.yaml')
     harness = Harness(route)
     previous_height = harness.sim.pose.z
     try:

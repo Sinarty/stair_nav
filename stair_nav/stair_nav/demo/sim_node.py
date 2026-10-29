@@ -4,7 +4,6 @@ from pathlib import Path
 import math
 
 import rclpy
-from ament_index_python.packages import get_package_share_directory
 from nav_msgs.msg import Path as PathMsg, OccupancyGrid
 from geometry_msgs.msg import Point, PoseStamped, TransformStamped
 from tf2_ros import TransformBroadcaster
@@ -15,7 +14,8 @@ from visualization_msgs.msg import Marker, MarkerArray
 from stair_nav_interfaces.msg import ControlCommand, MotionStatus
 from stair_nav.core.config import load_route
 from stair_nav.core.models import Command
-from stair_nav.core.simulation import Simulator
+from .simulation import Simulator
+from .headless import default_route
 from stair_nav.ros_utils import durable_qos, live_qos, seconds, stamp, pose_msg
 import yaml
 
@@ -81,7 +81,7 @@ def terrain_markers(grid, segment_id, stair, frame, timestamp):
 class SimExecutor(Node):
     def __init__(self):
         super().__init__('sim_executor')
-        default = str(Path(get_package_share_directory('stair_nav'))/'config'/'demo_route.yaml')
+        default = default_route()
         self.declare_parameter('route_file', default)
         # An empty array retains simulation.initial_pose/initial_node. Dynamic
         # typing accommodates ROS's ambiguous type for an empty array; a

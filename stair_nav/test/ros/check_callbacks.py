@@ -12,7 +12,7 @@ import unittest
 from threading import RLock
 
 from stair_nav.task_node import TaskManager
-from stair_nav.sim_node import SimExecutor
+from stair_nav.demo.sim_node import SimExecutor
 from stair_nav.segment_node import SegmentNavigation
 from stair_nav.ros_utils import stamp
 from stair_nav.core.models import Status, Command, ExecutionOutput
@@ -57,9 +57,9 @@ class Harness:
         from pathlib import Path
         from stair_nav.core.config import load_route
         from stair_nav.core.mission import MissionCore, Readiness, load_mission
-        root = Path(__file__).resolve().parents[1]
-        route = load_route(root/'stair_nav/config/demo_route.yaml')
-        config = load_mission(root/'stair_nav/config/inspection_mission.yaml', route)
+        root = Path(__file__).resolve().parents[1]/'fixtures'/'legacy'
+        route = load_route(root/'demo_route.yaml')
+        config = load_mission(root/'inspection_mission.yaml', route)
         # These existing callback races exercise the original three route legs.
         # Approach behavior has its own tests below and in the core suite.
         config.pop('approach_segment', None)

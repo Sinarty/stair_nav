@@ -2,11 +2,9 @@
 import math
 import uuid
 from copy import deepcopy
-from pathlib import Path
 from threading import RLock
 
 import rclpy
-from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path as PathMsg
 from rclpy.action import ActionServer, GoalResponse, CancelResponse
@@ -29,9 +27,11 @@ from stair_nav.ros_utils import (
 class SegmentNavigation(Node):
     def __init__(self):
         super().__init__('segment_navigation')
-        default = str(Path(get_package_share_directory('stair_nav'))/'config'/'demo_route.yaml')
-        self.declare_parameter('route_file', default)
-        self.route = load_route(self.get_parameter('route_file').value)
+        self.declare_parameter('route_file', '')
+        route_file = self.get_parameter('route_file').value
+        if not route_file:
+            raise ValueError('route_file is required; provide a validated route YAML')
+        self.route = load_route(route_file)
         self.core = SegmentExecutor(self.route)
         self.lock = RLock()
         self.reserved = False

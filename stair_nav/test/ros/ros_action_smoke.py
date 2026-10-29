@@ -32,7 +32,7 @@ def run_case(name, route, output_dir, domain):
         proc = subprocess.Popen(
             ['ros2', 'launch', 'stair_nav', 'demo.launch.py', 'rviz:=false',
              'autostart:=false', 'initial_pose:=[]', f'route_file:={route}',
-             f'mission_file:={Path(__file__).resolve().parents[1]/"stair_nav/config/inspection_mission.yaml"}'],
+             f'mission_file:={Path(__file__).resolve().parents[1]/"fixtures/legacy/inspection_mission.yaml"}'],
             stdout=log, stderr=subprocess.STDOUT, env=env, start_new_session=True)
         rclpy.init()
         node = Node(f'ros_smoke_{name}')
@@ -178,7 +178,7 @@ def run_case(name, route, output_dir, domain):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', type=Path,
-                        default=Path(__file__).resolve().parents[1]/'stair_nav/config/demo_route.yaml')
+                        default=Path(__file__).resolve().parents[1]/'fixtures/legacy/demo_route.yaml')
     parser.add_argument('--output-dir', type=Path, default=Path('/tmp/stair_nav_ros_smoke'))
     parser.add_argument('--cases', default='normal,ready_timeout,localization_stale,cancel,missing_exit,channel_blocked')
     parser.add_argument('--domain-base', type=int, default=91)

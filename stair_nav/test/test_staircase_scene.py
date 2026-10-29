@@ -15,9 +15,9 @@ from stair_nav.demo import Harness
 
 @pytest.fixture
 def scene():
-    config = Path(__file__).resolve().parents[1] / 'config'
-    route = load_route(config / 'staircase_demo_route.yaml')
-    mission = load_mission(config / 'staircase_demo_mission.yaml', route)
+    config = Path(__file__).resolve().parents[1] / 'stair_nav' / 'demo' / 'config'
+    route = load_route(config / 'route.yaml')
+    mission = load_mission(config / 'mission.yaml', route)
     return route, mission
 
 

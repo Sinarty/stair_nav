@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check grid visualization messages without starting a ROS graph.
 
-Run after sourcing ROS and the stair_nav install, like test_ros_callbacks.py.
+Run after sourcing ROS and the stair_nav install, like check_callbacks.py.
 """
 import math
 from pathlib import Path
@@ -13,7 +13,7 @@ import yaml
 from builtin_interfaces.msg import Time
 from visualization_msgs.msg import Marker
 
-from stair_nav.sim_node import SimExecutor, terrain_markers
+from stair_nav.demo.sim_node import SimExecutor, terrain_markers
 from stair_nav.core.config import load_route
 from stair_nav.core.engine import State
 from stair_nav.demo import Harness
@@ -22,8 +22,8 @@ from stair_nav.ros_utils import pose_from_msg, pose_msg
 
 class ReferencePointVisualizationTests(unittest.TestCase):
     def test_reference_arrow_moves_and_turns_between_route_legs(self):
-        config = Path(__file__).resolve().parents[1] / 'stair_nav' / 'config'
-        harness = Harness(load_route(config / 'staircase_demo_route.yaml'))
+        config = Path(__file__).resolve().parents[2] / 'stair_nav' / 'demo' / 'config'
+        harness = Harness(load_route(config / 'route.yaml'))
         try:
             for sid, heading in (('APPROACH_A', math.atan2(-.5, -4.)),
                                  ('AB', math.pi / 2), ('BC', 0.)):

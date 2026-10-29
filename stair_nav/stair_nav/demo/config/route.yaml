@@ -116,7 +116,7 @@ segments:
     start: A
     end: A
     platform_id: origin_platform
-    grid_file: origin_platform.yaml
+    grid_file: maps/approach.yaml
   AB:
     kind: stair
     backend: height_grid_astar
@@ -126,7 +126,7 @@ segments:
     start: A
     end: B
     platform_id: stair_ab
-    grid_file: stair_ab_grid.yaml
+    grid_file: maps/ab.yaml
   BC:
     kind: platform
     backend: grid_astar
@@ -138,7 +138,7 @@ segments:
     start: B
     end: C
     platform_id: corridor_bc
-    grid_file: corridor_bc.yaml
+    grid_file: maps/bc.yaml
   CD:
     kind: stair
     backend: height_grid_astar
@@ -148,7 +148,7 @@ segments:
     start: C
     end: D
     platform_id: stair_cd
-    grid_file: stair_cd_grid.yaml
+    grid_file: maps/cd.yaml
 simulation:
   initial_node: O
   hold_delay: 0.25

@@ -9,9 +9,9 @@ from pathlib import Path
 
 import yaml
 
-from .config import segment_config
-from .models import Command, MotionFeedback, NavError, Pose
-from .planning import OccupancyGrid
+from ..core.config import segment_config
+from ..core.models import Command, MotionFeedback, NavError, Pose
+from ..core.planning import OccupancyGrid
 
 
 class Simulator:

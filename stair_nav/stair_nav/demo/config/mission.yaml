@@ -1,6 +1,6 @@
 # SYNTHETIC DEMO ONLY. Editable dimensions; not a surveyed robot map.
 route_id: inspection_demo
-route_file: staircase_demo_route.yaml
+route_file: route.yaml
 sequence: [AB, BC, CD]
 approach_segment: APPROACH_A
 timeouts:

@@ -1,1 +1,1 @@
-"""ROS-independent navigation, configuration and simulation cores."""
+"""ROS-independent navigation, configuration and mission execution."""

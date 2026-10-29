@@ -312,8 +312,9 @@ def run_case(name, route, mission, output_dir, domain):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', type=Path,
-                        default=Path(__file__).resolve().parents[1]/'stair_nav/config/demo_route.yaml')
-    parser.add_argument('--mission', type=Path)
+                        default=Path(__file__).resolve().parents[1]/'fixtures/legacy/demo_route.yaml')
+    parser.add_argument('--mission', type=Path,
+                        default=Path(__file__).resolve().parents[1]/'fixtures/legacy/inspection_mission.yaml')
     parser.add_argument('--output-dir', type=Path, default=Path('/tmp/stair_nav_mission_smoke'))
     parser.add_argument('--domain-base', type=int, default=151)
     parser.add_argument('--cases', default='normal,approach,approach_obstacle,approach_corner,approach_cancel,approach_outside,cancel,early_cancel,ready_timeout,localization_stale,missing_exit,transport_timeout,restart_no_resume')

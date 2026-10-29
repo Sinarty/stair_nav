@@ -10,6 +10,8 @@ from pathlib import Path
 
 import yaml
 
+from .headless import default_route
+
 
 class RowDumper(yaml.SafeDumper):
     pass
@@ -26,7 +28,9 @@ RowDumper.add_representer(list, represent_list)
 
 def write_yaml(folder, name, document):
     title = '# SYNTHETIC DEMO ONLY. Editable dimensions; not a surveyed robot map.\n'
-    (folder / name).write_text(title + yaml.dump(document, Dumper=RowDumper,
+    filename = folder / name
+    filename.parent.mkdir(parents=True, exist_ok=True)
+    filename.write_text(title + yaml.dump(document, Dumper=RowDumper,
                                                sort_keys=False, allow_unicode=True), encoding='utf-8')
 
 
@@ -110,13 +114,13 @@ def generate(folder, ab_length=4., bc_length=6., cd_length=3., approach_length=4
                  nodes=nodes,
                  segments={
                      'APPROACH_A': dict(**flat, start='A', end='A', platform_id='origin_platform',
-                                       grid_file='origin_platform.yaml'),
+                                       grid_file='maps/approach.yaml'),
                      'AB': dict(**stair, start='A', end='B', platform_id='stair_ab',
-                                grid_file='stair_ab_grid.yaml'),
+                                grid_file='maps/ab.yaml'),
                      'BC': dict(**flat, start='B', end='C', platform_id='corridor_bc',
-                                grid_file='corridor_bc.yaml'),
+                                grid_file='maps/bc.yaml'),
                      'CD': dict(**stair, start='C', end='D', platform_id='stair_cd',
-                                grid_file='stair_cd_grid.yaml'),
+                                grid_file='maps/cd.yaml'),
                  },
                  simulation=dict(initial_node='O', hold_delay=.25, stable_delay=.25,
                                  exit_margin=.35,
@@ -139,23 +143,23 @@ def generate(folder, ab_length=4., bc_length=6., cd_length=3., approach_length=4
     cd = raster('stair_cd', cx - .7 - half_cell, by - .5 - half_cell,
                 round(1.6 / resolution), round((cd_length + 1.2) / resolution),
                 resolution, rise, cd_thresholds, rise / steps, dy)
-    mission = dict(route_id='inspection_demo', route_file='staircase_demo_route.yaml',
+    mission = dict(route_id='inspection_demo', route_file='route.yaml',
                    sequence=['AB', 'BC', 'CD'], approach_segment='APPROACH_A',
                    timeouts=dict(service=5., ready=5., acceptance=3., execution=55.,
                                  confirmation=8., feedback=2., cancel_response=3.,
                                  cancel_terminal=5., cleanup=5.),
                    readiness=dict(pose_max_age=.5, motion_max_age=.5,
                                   navigation_max_age=1., require_start_node=True), per_segment={})
-    for name, data in [('staircase_demo_route.yaml', route), ('staircase_demo_mission.yaml', mission),
-                       ('origin_platform.yaml', origin), ('corridor_bc.yaml', corridor),
-                       ('stair_ab_grid.yaml', ab), ('stair_cd_grid.yaml', cd)]:
+    for name, data in [('route.yaml', route), ('mission.yaml', mission),
+                       ('maps/approach.yaml', origin), ('maps/bc.yaml', corridor),
+                       ('maps/ab.yaml', ab), ('maps/cd.yaml', cd)]:
         write_yaml(folder, name, data)
     return route
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--out', type=Path, default=Path(__file__).resolve().parents[1] / 'stair_nav/config')
+    parser.add_argument('--out', type=Path, default=Path(default_route()).parent)
     parser.add_argument('--ab-length', type=float, default=4.)
     parser.add_argument('--bc-length', type=float, default=6.)
     parser.add_argument('--cd-length', type=float, default=3.)

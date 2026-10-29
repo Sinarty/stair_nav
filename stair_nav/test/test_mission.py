@@ -12,9 +12,9 @@ from stair_nav.core.models import NavError
 
 @pytest.fixture
 def setup():
-    root = Path(__file__).resolve().parents[1]
-    route = load_route(root/'config/demo_route.yaml')
-    config = load_mission(root/'config/inspection_mission.yaml', route)
+    root = Path(__file__).resolve().parent/'fixtures'/'legacy'
+    route = load_route(root/'demo_route.yaml')
+    config = load_mission(root/'inspection_mission.yaml', route)
     config.pop('approach_segment', None)
     counter = iter(f'exec-{n}' for n in range(100))
     return route, config, MissionCore(route, config, id_factory=lambda: next(counter))
@@ -351,7 +351,7 @@ def test_transition_log_has_time_ids_event_reason(setup):
 def test_mission_route_file_reference_must_match_loaded_route(tmp_path):
     from stair_nav.core.mission import load_mission
     import yaml
-    route_path = Path(__file__).resolve().parents[1]/'config'/'demo_route.yaml'
+    route_path = Path(__file__).resolve().parent/'fixtures'/'legacy'/'demo_route.yaml'
     route = load_route(route_path)
     mission = tmp_path/'mission.yaml'
     mission.write_text(yaml.safe_dump(dict(route_id='test', sequence=['AB', 'BC', 'CD'],

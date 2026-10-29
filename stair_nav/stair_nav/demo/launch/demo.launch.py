@@ -21,8 +21,8 @@ def generate_launch_description():
     sim_parameters.update({name: ParameterValue(LaunchConfiguration(name), value_type=bool)
                            for name in faults})
     return LaunchDescription([
-        DeclareLaunchArgument('route_file', default_value=str(share/'config'/'staircase_demo_route.yaml')),
-        DeclareLaunchArgument('mission_file', default_value=str(share/'config'/'staircase_demo_mission.yaml')),
+        DeclareLaunchArgument('route_file', default_value=str(share/'demo'/'config'/'route.yaml')),
+        DeclareLaunchArgument('mission_file', default_value=str(share/'demo'/'config'/'mission.yaml')),
         DeclareLaunchArgument('rviz', default_value='true'),
         DeclareLaunchArgument('autostart', default_value='true'),
         DeclareLaunchArgument('initial_pose', default_value='[]',
@@ -36,6 +36,6 @@ def generate_launch_description():
              parameters=[{'route_file': route, 'mission_file': mission, 'autostart': ParameterValue(
                  LaunchConfiguration('autostart'), value_type=bool)}]),
         Node(package='rviz2', executable='rviz2', output='screen',
-             arguments=['-d', str(share/'rviz'/'demo.rviz')],
+             arguments=['-d', str(share/'demo'/'rviz'/'demo.rviz')],
              condition=IfCondition(LaunchConfiguration('rviz'))),
     ])

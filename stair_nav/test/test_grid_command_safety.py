@@ -71,7 +71,7 @@ def test_invalid_twist_or_horizon_is_never_authorized(vx, wz, duration):
 
 
 def test_planned_grid_path_carries_the_inflated_map_for_command_checks():
-    route = load_route(Path(__file__).resolve().parents[1] / 'config' / 'demo_route.yaml')
+    route = load_route(Path(__file__).resolve().parent / 'fixtures' / 'legacy' / 'demo_route.yaml')
     segment = segment_config(route, 'APPROACH_A')
     path = GridAStarBackend().plan(route, segment, Pose(-1., .4, 0., .6))
     document = yaml.safe_load((Path(route['_base_dir']) / segment['grid_file']).read_text())
@@ -83,7 +83,7 @@ def test_planned_grid_path_carries_the_inflated_map_for_command_checks():
 
 
 def test_executor_rejects_unsafe_tracker_output_before_publishing_velocity():
-    route = load_route(Path(__file__).resolve().parents[1] / 'config' / 'demo_route.yaml')
+    route = load_route(Path(__file__).resolve().parent / 'fixtures' / 'legacy' / 'demo_route.yaml')
     route['simulation']['initial_pose'] = [-1.95, .5, 0., 0.]
     harness = Harness(route)
     try:
@@ -119,7 +119,7 @@ def test_executor_rejects_unsafe_tracker_output_before_publishing_velocity():
     [6., 0., 2., 0.],
 ])
 def test_grid_endpoint_join_reaches_exact_goal_without_terminal_backtracking(initial):
-    route = load_route(Path(__file__).resolve().parents[1] / 'config' / 'demo_route.yaml')
+    route = load_route(Path(__file__).resolve().parent / 'fixtures' / 'legacy' / 'demo_route.yaml')
     route['simulation']['initial_pose'] = initial
     segment = segment_config(route, 'CD')
     document = yaml.safe_load((Path(route['_base_dir']) / segment['grid_file']).read_text())

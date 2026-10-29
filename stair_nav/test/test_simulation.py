@@ -7,12 +7,12 @@ import pytest
 
 from stair_nav.core.config import load_route
 from stair_nav.core.models import Command
-from stair_nav.core.simulation import Simulator
+from stair_nav.demo.simulation import Simulator
 
 
 @pytest.fixture
 def sim():
-    route = load_route(Path(__file__).resolve().parents[1] / 'config' / 'demo_route.yaml')
+    route = load_route(Path(__file__).resolve().parent / 'fixtures' / 'legacy' / 'demo_route.yaml')
     return Simulator(route)
 
 

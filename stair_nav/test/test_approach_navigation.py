@@ -9,13 +9,13 @@ from stair_nav.core.config import load_route, segment_config
 from stair_nav.core.engine import State
 from stair_nav.core.models import NavError, Pose
 from stair_nav.core.planning import GridAStarBackend, OccupancyGrid
-from stair_nav.core.simulation import Simulator
+from stair_nav.demo.simulation import Simulator
 from stair_nav.demo import Harness
 
 
 @pytest.fixture
 def route():
-    return load_route(Path(__file__).resolve().parents[1] / 'config' / 'demo_route.yaml')
+    return load_route(Path(__file__).resolve().parent / 'fixtures' / 'legacy' / 'demo_route.yaml')
 
 
 def approach_grid(route):

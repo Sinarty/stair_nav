@@ -6,12 +6,10 @@ transport, planner work, a condition variable, or a nested executor spin.
 from copy import deepcopy
 import json
 import math
-from pathlib import Path
 from threading import RLock
 import uuid
 
 import rclpy
-from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import PoseStamped
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -41,13 +39,16 @@ STATUS_FIELDS = (
 class TaskManager(Node):
     def __init__(self):
         super().__init__('task_manager')
-        share = Path(get_package_share_directory('stair_nav'))
-        self.declare_parameter('route_file', str(share/'config'/'demo_route.yaml'))
-        self.declare_parameter('mission_file', str(share/'config'/'inspection_mission.yaml'))
+        self.declare_parameter('route_file', '')
+        self.declare_parameter('mission_file', '')
         # A restarted standalone node never resumes an old mission.
         self.declare_parameter('autostart', False)
-        self.route = load_route(self.get_parameter('route_file').value)
-        self.config = load_mission(self.get_parameter('mission_file').value, self.route)
+        route_file = self.get_parameter('route_file').value
+        mission_file = self.get_parameter('mission_file').value
+        if not route_file or not mission_file:
+            raise ValueError('route_file and mission_file are required; provide validated site YAML files')
+        self.route = load_route(route_file)
+        self.config = load_mission(mission_file, self.route)
         self.core = MissionCore(self.route, self.config)
         self.lock = RLock()
         self.group = ReentrantCallbackGroup()

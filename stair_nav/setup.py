@@ -7,9 +7,10 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/stair_nav']),
         ('share/stair_nav', ['package.xml']),
-        ('share/stair_nav/config', glob('config/*.yaml')),
-        ('share/stair_nav/launch', glob('launch/*.launch.py')),
-        ('share/stair_nav/rviz', glob('rviz/*.rviz')),
+        ('share/stair_nav/demo/config', glob('stair_nav/demo/config/*.yaml')),
+        ('share/stair_nav/demo/config/maps', glob('stair_nav/demo/config/maps/*.yaml')),
+        ('share/stair_nav/demo/rviz', glob('stair_nav/demo/rviz/*.rviz')),
+        ('share/stair_nav/launch', glob('launch/*.launch.py') + glob('stair_nav/demo/launch/*.launch.py')),
     ],
     install_requires=['setuptools', 'PyYAML'],
     zip_safe=True,
@@ -20,6 +21,6 @@ setup(
     entry_points={'console_scripts': [
         'segment_navigation = stair_nav.segment_node:main',
         'task_manager = stair_nav.task_node:main',
-        'sim_executor = stair_nav.sim_node:main',
+        'sim_executor = stair_nav.demo.sim_node:main',
     ]},
 )
