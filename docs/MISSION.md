@@ -169,6 +169,8 @@ python3 tools/test_ros_callbacks.py
 python3 tools/mission_smoke.py --output-dir /tmp/stair_nav_mission_smoke
 ```
 
+运行日志、JUnit XML 和场景结果 JSON 保存为本地输出，不由 Git 跟踪。默认输出位于 `/tmp`；需要保留在工程内时可使用已忽略的 `artifacts/` 目录。验证结论和复现命令保留在文档中，新克隆仓库通过测试脚本重新生成原始结果。
+
 任务 ROS 脚本覆盖正常顺序、取消/早取消、未就绪、定位过期、缺少出梯、失联阻塞及任务节点重启不续跑；每个用例使用新模拟进程。`transport_timeout` 只终止脚本自己启动的段节点。
 
 ## 真实运控接入仍需确认

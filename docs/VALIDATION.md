@@ -1,23 +1,25 @@
 # 实际验证记录
 
+本文保留验证结论、环境、限制与复现命令。构建/运行日志、JUnit XML 和场景结果 JSON 是本地产物，不由 Git 跟踪；原有本地副本保留。新克隆的仓库可运行下列命令重新生成结果，输出放在 `/tmp` 或工程根目录已忽略的 `artifacts/`。RViz 截图作为文档插图继续保留。
+
 ## 原规划/跟踪版本记录
 
 以下至“任务状态机增量验证”之前为原规划/跟踪版本的历史记录，验证日期：2026-10-28（Asia/Shanghai）。环境为 Ubuntu 22.04、Python 3.10.12、ROS 2 Humble；当时构建产物放在本项目 `.colcon/`，未写入已有工作区 build/install。任务状态机增量采用工作区根目录构建，新的执行结果单独记录，旧结果不能视为新增代码已验证。
 
 ## 执行结果
 
-| 验证 | 实际结果 | 原始记录 |
-|---|---|---|
-| colcon build | 两个包成功，首次构建约 3 分 1 秒 | [接口包](build_interfaces.log)、[Python 包](build_python.log) |
-| 最终 Python 包复建 | 加入 TF 依赖后复建成功 | [最终构建](final_build.log) |
-| colcon test / test-result | 70 tests，0 errors，0 failures，0 skipped | [colcon 测试日志](colcon_test.log) |
-| ROS 无关核心测试 | 70 项通过 | [JUnit](core_tests.xml) |
-| 确定性三段闭环 | AB、BC、CD 全成功；24.6 秒模拟时间；439 次有效控制采样 | [完整状态与末位姿](headless_demo.json) |
-| ROS Action/话题/服务 | 正常三段、未就绪、定位过期、执行取消、缺少出梯确认、通道阻塞，6 个场景通过 | [JSON](ros_smoke_results.json)、[日志](ros_logs/) |
-| 导航 Action 服务端失联 | 中途终止测试自己的段导航进程；任务检测超时、报告停止状态未知、拒绝新任务 | [JSON](transport_smoke_results.json)、[日志](ros_logs/transport_timeout.log) |
-| 目标接受后立即取消 | 即时 Action 取消通过；返回 CANCELED，导航已撤销、保持尚未确认 | [JSON](immediate_cancel_results.json)、[日志](ros_logs/immediate_cancel.log) |
-| ROS 回调竞态与入口校验 | 13/13 通过，含执行回调尚未开始时的取消，以及终态结果与迟到取消的竞态 | [回调测试](ros_callback_tests.log) |
-| RViz 实际演示 | 已启动 RViz 并显示节点、路径、轨迹、前视点、楼梯/平台区域及合成栅格 | [截图](rviz_demo.png)、[日志](rviz_smoke.log) |
+| 验证 | 实际结果 |
+| --- | --- |
+| colcon build | 两个包成功，首次构建约 3 分 1 秒 |
+| 最终 Python 包复建 | 加入 TF 依赖后复建成功 |
+| colcon test / test-result | 70 tests，0 errors，0 failures，0 skipped |
+| ROS 无关核心测试 | 70 项通过 |
+| 确定性三段闭环 | AB、BC、CD 全成功；24.6 秒模拟时间；439 次有效控制采样 |
+| ROS Action/话题/服务 | 正常三段、未就绪、定位过期、执行取消、缺少出梯确认、通道阻塞，6 个场景通过 |
+| 导航 Action 服务端失联 | 中途终止测试自己的段导航进程；任务检测超时、报告停止状态未知、拒绝新任务 |
+| 目标接受后立即取消 | 即时 Action 取消通过；返回 CANCELED，导航已撤销、保持尚未确认 |
+| ROS 回调竞态与入口校验 | 13/13 通过，含执行回调尚未开始时的取消，以及终态结果与迟到取消的竞态 |
+| RViz 实际演示 | 已启动 RViz 并显示节点、路径、轨迹、前视点、楼梯/平台区域及合成栅格；[文档截图](rviz_demo.png) |
 
 核心测试覆盖：A* 绕障/不可达/禁止对角穿角/未知格/膨胀/简化后碰撞检查、错误楼层、空路径及非有限/重复/跳变点、入口接入拒绝、三维重叠路径的高度与历史进度匹配、正常限速及变化率、能力约束、规划取消与超时、旧规划 Future 迟到、旧任务反馈/结果、忙碌拒绝、定位/反馈过期、执行异常及超时、通道阻塞、几何到达但缺少整机出梯确认。
 
@@ -70,16 +72,16 @@ python3 tools/ros_action_smoke.py --cases immediate_cancel \
 
 验证日期：2026-10-28（Asia/Shanghai）。历史 70 项/13 项结果仅对应原版本；本次实际执行如下。
 
-| 验证 | 实际结果 | 原始记录 |
-|---|---|---|
-| 工作区根目录构建 | 两包成功，3 分 30 秒；未覆盖相邻包或原工作区安装 | [接口构建](mission_build_interfaces.log)、[Python 构建](mission_build_python.log) |
-| 纯核心 pytest | 117/117 通过，其中新增任务状态机 47 项 | [JUnit](mission_core_tests.xml) |
-| colcon test / test-result | 117 tests，0 errors，0 failures，0 skipped | [测试输出](mission_colcon_test.log) |
-| ROS 回调与就绪边界 | 26/26 通过；无 ROS 图，真实回调 + 可控 Future | [回调输出](mission_callback_tests.log) |
-| 真实任务 Action 联调 | 8/8 场景通过，原规划/跟踪/模拟链路 | [JSON](mission_ros_results.json)、[节点日志](mission_ros_logs/) |
-| 原 Launch/Trigger 正常链路 | AB、BC、CD 执行且最终 CD/SUCCEEDED | [JSON](mission_legacy_normal_results.json)、[Launch 日志](mission_ros_logs/legacy_normal.log) |
-| 默认 demo 自动启动 | 单调度者、单执行链、AB→BC→CD 成功后定时 SIGINT 退出 | [JSON](mission_demo_launch_results.json)、[Launch 日志](mission_demo_launch.log) |
-| 原接口故障与立即取消 | 失联阻塞/新任务拒绝、单段即时取消，2/2 通过 | [JSON](mission_legacy_fault_results.json) |
+| 验证 | 实际结果 |
+| --- | --- |
+| 工作区根目录构建 | 两包成功，3 分 30 秒；未覆盖相邻包或原工作区安装 |
+| 纯核心 pytest | 117/117 通过，其中新增任务状态机 47 项 |
+| colcon test / test-result | 117 tests，0 errors，0 failures，0 skipped |
+| ROS 回调与就绪边界 | 26/26 通过；无 ROS 图，真实回调 + 可控 Future |
+| 真实任务 Action 联调 | 8/8 场景通过，原规划/跟踪/模拟链路 |
+| 原 Launch/Trigger 正常链路 | AB、BC、CD 执行且最终 CD/SUCCEEDED |
+| 默认 demo 自动启动 | 单调度者、单执行链、AB→BC→CD 成功后定时 SIGINT 退出 |
+| 原接口故障与立即取消 | 失联阻塞/新任务拒绝、单段即时取消，2/2 通过 |
 
 任务 Action 八场景：顺序成功（26.171 秒，三个不同执行 ID，每段仅一次；忙碌请求拒绝；晚订阅取得终态）、运行取消（等待 hold/stable 后完成）、派发前早取消（未创建导航段，hold=false 符合无自有运动契约）、未就绪（READY_TIMEOUT，无派发）、定位过期（POSE_STALE，确认清理）、缺少出梯（ARRIVAL_CONFIRM_TIMEOUT，AB 几何候选不推进）、执行器失联（FAULT_BLOCKED/CANCEL_RESPONSE_TIMEOUT，停止与保持未知，新任务和 reset 均拒绝）、仅重启任务节点（IDLE、空任务 ID、不续跑旧段）。
 
@@ -127,12 +129,12 @@ ROS_LOCALHOST_ONLY=1 python3 tools/ros_action_smoke.py \
 
 新增 6 项核心测试和 3 项回调测试，并加强已有释放检查。确定性回归覆盖：更新的反馈否定旧快照时无 SEND，反馈恢复后仅 SEND 一次；BC 结果与新快照在定时器前到达时，缺少 CD 的 turn_in_place 能力不会派发 CD；补齐后仅派发一次；持续缺少前置条件时由 READY_TIMEOUT 结束。
 
-| 验证 | 结果 | 记录 |
-|---|---|---|
-| 工作区根目录增量构建 | 受影响的 stair_nav 包成功，2 分钟；复用未变化的接口包 | [构建日志](readiness_fix_build.log) |
-| 全部纯核心测试 | 123/123 通过（任务核心 53 项） | [JUnit](readiness_fix_core_tests.xml) |
-| 实际 ROS 回调及就绪测试 | 29/29 通过 | [回调日志](readiness_fix_callback_tests.log) |
-| 原规划/跟踪/模拟端任务 Action 联调 | 8/8 通过；顺序、取消、就绪、过期、缺少出梯、失联阻塞与重启行为正常 | [JSON](readiness_fix_ros_results.json)、[节点日志](readiness_fix_ros_logs/) |
+| 验证 | 结果 |
+| --- | --- |
+| 工作区根目录增量构建 | 受影响的 stair_nav 包成功，2 分钟；复用未变化的接口包 |
+| 全部纯核心测试 | 123/123 通过（任务核心 53 项） |
+| 实际 ROS 回调及就绪测试 | 29/29 通过 |
+| 原规划/跟踪/模拟端任务 Action 联调 | 8/8 通过；顺序、取消、就绪、过期、缺少出梯、失联阻塞与重启行为正常 |
 
 正常任务实际耗时 25.702 秒，AB/BC/CD 三个执行 ID 各出现一次；忙碌拒绝和晚订阅终态检查通过。取消、失联阻塞及重启不续跑行为未受本次守卫变更影响。
 

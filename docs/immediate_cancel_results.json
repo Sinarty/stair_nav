@@ -1,9 +1,0 @@
-[
-  {
-    "case": "immediate_cancel",
-    "passed": true,
-    "elapsed_seconds": 0.468,
-    "expected_error": "CANCELED",
-    "hold_confirmed_at_result": false
-  }
-]

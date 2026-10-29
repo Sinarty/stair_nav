@@ -7,7 +7,7 @@
 
 **默认数据全部为合成场景。** AB、BC 是两段带平台的人工三维楼梯参考路径；CD 在二层平台占据栅格上绕障规划。示例没有证明任何真实点云地图上的可通行性。默认启动不会加载真实机器人 SDK。
 
-实际执行的构建、测试、节点联调结果见 [docs/VALIDATION.md](docs/VALIDATION.md)；可复现的纯核心演示记录见 [docs/headless_demo.json](docs/headless_demo.json)。
+实际执行的构建、测试、节点联调结论与复现方法见 [docs/VALIDATION.md](docs/VALIDATION.md)。纯核心演示可按下文命令生成本地 JSON 结果。
 
 两个包已完成构建；就绪守卫修复后的 123 项核心测试、29 项 ROS 回调测试和 8 个任务 Action 场景全部通过。新增任务状态机的接口、状态转移表、故障复位与启动方法见 [docs/MISSION.md](docs/MISSION.md)，本次执行结果见 [验证记录](docs/VALIDATION.md)。RViz 实拍见 [演示截图](docs/rviz_demo.png)。
 
@@ -124,6 +124,8 @@ PYTHONPATH=stair_nav python3 -m pytest -q stair_nav/test
 ```
 
 演示调用生产使用的核心规划、跟踪、到达判断及执行状态机，通过候选速度积分得到定位。测试调度器同步完成规划，以获得确定的时间和结果；ROS 节点使用异步规划线程。头部 JSON 中 `success=true` 才表示整条路线成功；故障演示返回非零退出码。
+
+运行日志、JUnit XML 和场景结果 JSON 不纳入 Git；生成文件放在 `/tmp` 或工程根目录已忽略的 `artifacts/`。仓库保留测试脚本、验证结论和复现命令，文档插图继续跟踪。
 
 构建后可运行 ROS 场景验证脚本，每个场景启动一套全新模拟节点，结果和节点日志保存到输出目录：
 
