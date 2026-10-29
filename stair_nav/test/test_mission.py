@@ -15,6 +15,7 @@ def setup():
     root = Path(__file__).resolve().parents[1]
     route = load_route(root/'config/demo_route.yaml')
     config = load_mission(root/'config/inspection_mission.yaml', route)
+    config.pop('approach_segment', None)
     counter = iter(f'exec-{n}' for n in range(100))
     return route, config, MissionCore(route, config, id_factory=lambda: next(counter))
 
@@ -452,3 +453,368 @@ def test_next_segment_missing_prerequisites_times_out_without_dispatch(setup):
     assert core.status.state == S.FAILED and core.status.error_code == 'READY_TIMEOUT'
     assert core.status.completed_segments == 1
     assert not kinds(effects, 'SEND')
+
+
+@pytest.fixture
+def approach_setup(setup):
+    route, config, _ = setup
+    # This suite exercises mission arbitration; the navigation tests own maps
+    # and paths. Reuse a platform segment's shape for the synthetic approach.
+    route['segments']['APPROACH_A'] = {
+        **deepcopy(route['segments']['CD']), 'start': 'A', 'end': 'A',
+        'platform_id': 'lower_platform',
+    }
+    config['approach_segment'] = 'APPROACH_A'
+    counter = iter(f'approach-exec-{n}' for n in range(100))
+    return route, config, MissionCore(route, config, id_factory=lambda: next(counter))
+
+
+def approach_dispatch(core, now=1.):
+    assert core.start(core.config['route_id'], 'approach-task', now)
+    effects = core.tick(now, ready(now, target_segment_id='APPROACH_A', at_start=False), True)
+    assert [e.segment_id for e in kinds(effects, 'SEND')] == ['APPROACH_A']
+    assert core.status.segment_index == 0 and core.status.segment_count == 3
+    return core.status.execution_id
+
+
+def approach_running(core, now=1.):
+    execution_id = approach_dispatch(core, now)
+    event(core, 'ACCEPTED', now+.01, accepted=True)
+    assert core.status.state == S.APPROACHING_START
+    return execution_id
+
+
+def test_approach_skipped_at_start_then_main_target_gets_its_own_readiness(approach_setup):
+    _, _, core = approach_setup
+    assert core.start(core.config['route_id'], 'task', 1.)
+    assert core.status.segment_id == 'APPROACH_A' and core.status.segment_index == 0
+    old_facts = ready(1., target_segment_id='APPROACH_A', at_start=True)
+    effects = core.tick(1., old_facts, True)
+    assert core.status.segment_id == 'AB' and core.status.segment_index == 1
+    assert core.status.state == S.WAITING_READY and core.status.completed_segments == 0
+    assert not kinds(effects, 'SEND')
+    assert not kinds(core.tick(1.1, old_facts, True), 'SEND')
+    effects = core.tick(1.2, ready(1.2, target_segment_id='AB', at_start=True), True)
+    assert [e.segment_id for e in kinds(effects, 'SEND')] == ['AB']
+
+
+def test_approach_unknown_localization_cannot_dispatch_and_times_out(approach_setup):
+    _, config, core = approach_setup
+    assert core.start(core.config['route_id'], 'task', 1.)
+    facts = ready(1., target_segment_id='APPROACH_A', at_start=None)
+    assert not kinds(core.tick(1., facts, True), 'SEND')
+    assert core.status.state == S.WAITING_READY and core.status.segment_index == 0
+    effects = core.tick(1.+config['timeouts']['ready'], facts, True)
+    assert core.status.state == S.FAILED and core.status.error_code == 'READY_TIMEOUT'
+    assert not kinds(effects, 'SEND')
+
+
+def test_approach_waits_until_localization_can_choose_to_navigate(approach_setup):
+    _, _, core = approach_setup
+    assert core.start(core.config['route_id'], 'task', 1.)
+    assert not kinds(core.tick(1., ready(1., target_segment_id='APPROACH_A'), True), 'SEND')
+    facts = ready(1.1, target_segment_id='APPROACH_A', at_start=False)
+    assert [e.segment_id for e in kinds(core.tick(1.1, facts, True), 'SEND')] == ['APPROACH_A']
+
+
+@pytest.mark.parametrize('initial_at_start', [False, True])
+def test_start_target_is_reconsidered_until_first_dispatch(approach_setup, initial_at_start):
+    _, _, core = approach_setup
+    core.start(core.config['route_id'], 'task', 1.)
+    initial = replace(ready(1., target_segment_id='APPROACH_A', at_start=initial_at_start),
+                      ready=False, released=False)
+    assert not kinds(core.tick(1., initial, True), 'SEND')
+    old_target = core.status.segment_id
+    next_at_start = not initial_at_start
+    # Even otherwise-ready facts for the old target cannot authorize the new
+    # one after the latest localization changes the start decision.
+    effects = core.tick(1.1, ready(1.1, target_segment_id=old_target,
+                                  at_start=next_at_start), True)
+    expected = 'AB' if next_at_start else 'APPROACH_A'
+    assert core.status.segment_id == expected
+    assert core.status.segment_index == (1 if next_at_start else 0)
+    assert not kinds(effects, 'SEND')
+    facts = ready(1.2, target_segment_id=expected, at_start=next_at_start)
+    assert [e.segment_id for e in kinds(core.tick(1.2, facts, True), 'SEND')] == [expected]
+    execution = core.status.execution_id
+    # The decision is fixed once this execution has been dispatched.
+    effects = core.tick(1.3, ready(1.3, target_segment_id=expected,
+                                 at_start=initial_at_start), True)
+    assert core.status.segment_id == expected and core.status.execution_id == execution
+    assert not kinds(effects, 'SEND')
+
+
+def test_start_target_waits_for_localization_again_after_initial_skip(approach_setup):
+    _, _, core = approach_setup
+    core.start(core.config['route_id'], 'task', 1.)
+    core.tick(1., ready(1., target_segment_id='APPROACH_A', at_start=True), True)
+    assert core.status.segment_id == 'AB'
+    # A claimed ready flag cannot dispatch after localization becomes unknown.
+    assert not kinds(core.tick(1.1, ready(1.1, target_segment_id='AB', at_start=None), True), 'SEND')
+    effects = core.tick(1.2, ready(1.2, target_segment_id='AB', at_start=False), True)
+    assert core.status.segment_id == 'APPROACH_A' and not kinds(effects, 'SEND')
+    effects = core.tick(1.3, ready(1.3, target_segment_id='APPROACH_A', at_start=False), True)
+    assert [e.segment_id for e in kinds(effects, 'SEND')] == ['APPROACH_A']
+
+
+@pytest.mark.parametrize('server_ready, code', [(True, 'READY_TIMEOUT'), (False, 'SERVICE_TIMEOUT')])
+def test_start_pose_oscillation_does_not_restart_wait_deadline(approach_setup, server_ready, code):
+    _, config, core = approach_setup
+    core.start(core.config['route_id'], 'task', 1.)
+    boundary = 1. + config['timeouts']['ready' if server_ready else 'service']
+    for index, when in enumerate((1., 1.5, 2., boundary-.1, boundary)):
+        facts = replace(ready(when, target_segment_id=core.status.segment_id,
+                              at_start=index % 2 == 0), ready=False)
+        effects = core.tick(when, facts, server_ready)
+        assert not kinds(effects, 'SEND')
+        assert core._waiting_at == 1.
+    assert core.status.state == S.FAILED and core.status.error_code == code
+
+
+def test_approach_success_does_not_count_and_full_route_still_requires_three_segments(approach_setup):
+    _, _, core = approach_setup
+    approach_running(core)
+    effects = event(core, 'RESULT', 1.2, status=4, success=True,
+                    navigation_stopped=True, hold_confirmed=True)
+    assert core.status.state == S.WAITING_READY and core.status.segment_id == 'AB'
+    assert core.status.segment_index == 1 and core.status.completed_segments == 0
+    assert core.status.segment_count == 3 and not kinds(effects, 'SEND')
+    assert not kinds(core.tick(1.21, ready(1.21, target_segment_id='APPROACH_A'), True), 'SEND')
+    effects = core.tick(1.3, ready(1.3, target_segment_id='AB', at_start=True), True)
+    sent = [e.segment_id for e in kinds(effects, 'SEND')]
+    for index in range(3):
+        event(core, 'ACCEPTED', 1.4+index, accepted=True)
+        effects = success(core, 1.5+index)
+        sent.extend(e.segment_id for e in kinds(effects, 'SEND'))
+    assert sent == ['AB', 'BC', 'CD']
+    assert core.status.state == S.SUCCEEDED and core.status.completed_segments == 3
+
+
+@pytest.mark.parametrize('accepted_before_cancel', [False, True])
+def test_approach_cancel_handles_late_acceptance_and_never_starts_main(approach_setup, accepted_before_cancel):
+    _, _, core = approach_setup
+    execution_id = approach_dispatch(core)
+    if accepted_before_cancel:
+        event(core, 'ACCEPTED', 1.01, accepted=True)
+    assert core.cancel(1.1)
+    effects = core.tick(1.1)
+    if not accepted_before_cancel:
+        assert not kinds(effects, 'CANCEL')
+        effects = event(core, 'ACCEPTED', 1.11, accepted=True)
+    assert len(kinds(effects, 'CANCEL')) == 1
+    assert core.status.state == S.CANCELING
+    effects = event(core, 'RESULT', 1.2, status=5, success=False,
+                    navigation_stopped=True, hold_confirmed=True)
+    assert core.status.state == S.CANCELED and core.status.completed_segments == 0
+    assert core.status.execution_id == execution_id and core.status.segment_index == 0
+    assert not kinds(effects, 'SEND')
+
+
+@pytest.mark.parametrize('status,success_flag,stopped,hold,code', [
+    (6, False, True, True, 'APPROACH_PLAN_FAILED'),
+    (4, True, True, False, ''),
+    (4, True, False, True, ''),
+    (6, True, True, True, ''),
+])
+def test_approach_result_must_confirm_success_and_release(approach_setup, status, success_flag, stopped, hold, code):
+    _, _, core = approach_setup
+    approach_running(core)
+    effects = event(core, 'RESULT', 1.2, status=status, success=success_flag,
+                    navigation_stopped=stopped, hold_confirmed=hold,
+                    error_code=code)
+    assert core.status.state in (S.FAILED, S.CANCELING)
+    assert core.status.segment_id == 'APPROACH_A' and core.status.completed_segments == 0
+    assert not kinds(effects, 'SEND')
+
+
+@pytest.mark.parametrize('timeout,code', [('execution', 'EXECUTION_TIMEOUT'),
+                                         ('confirmation', 'CONFIRMATION_TIMEOUT'),
+                                         ('feedback', 'FEEDBACK_TIMEOUT')])
+def test_approach_uses_execution_and_feedback_deadlines(approach_setup, timeout, code):
+    route, config, _ = approach_setup
+    config['per_segment'] = {'APPROACH_A': {'timeouts': {timeout: .2}}}
+    core = MissionCore(route, config)
+    approach_running(core)
+    if timeout == 'confirmation':
+        event(core, 'FEEDBACK', 1.02, stamp=1.02, segment_state='ARRIVAL_CONFIRM',
+              phase='geometric_candidate', progress=1.)
+    effects = core.tick(1.25)
+    assert core.status.state == S.CANCELING and core.status.error_code == code
+    assert len(kinds(effects, 'CANCEL')) == 1 and not kinds(effects, 'SEND')
+
+
+def test_retired_approach_feedback_cannot_mutate_main_segment(approach_setup):
+    _, _, core = approach_setup
+    execution_id = approach_running(core)
+    event(core, 'RESULT', 1.2, status=4, success=True,
+          navigation_stopped=True, hold_confirmed=True)
+    core.tick(1.3, ready(1.3, target_segment_id='AB', at_start=True), True)
+    event(core, 'ACCEPTED', 1.4, accepted=True)
+    original = replace(core.status)
+    core.post('FEEDBACK', core.status.task_id, execution_id,
+              stamp=1.5, segment_state='ARRIVAL_CONFIRM', phase='geometric_candidate', progress=1.)
+    effects = core.tick(1.5, ready(1.5, target_segment_id='AB'), True)
+    assert core.status == original and not kinds(effects, 'SEGMENT_TRANSITION')
+
+
+@pytest.mark.parametrize('mutation', [
+    lambda r, c: c.update(approach_segment='missing'),
+    lambda r, c: c.update(approach_segment=''),
+    lambda r, c: c.update(approach_segment=None),
+    lambda r, c: c.update(approach_segment='AB'),
+    lambda r, c: r['segments']['APPROACH_A'].update(kind='stair'),
+    lambda r, c: r['segments']['APPROACH_A'].update(backend='preset_path'),
+    lambda r, c: r['segments']['APPROACH_A'].update(end='B'),
+])
+def test_invalid_approach_config_is_rejected(approach_setup, mutation):
+    route, config, _ = approach_setup
+    mutation(route, config)
+    with pytest.raises(NavError, match='approach_segment'):
+        validate_mission(config, route)
+
+
+def test_each_transition_keeps_its_own_snapshot_within_one_tick(setup):
+    _, _, core = setup
+    assert core.start(core.config['route_id'], 'task', 1.)
+    effects = core.tick(1., ready(1.), True)
+    transitions = kinds(effects, 'TRANSITION')
+    assert [e.snapshot.state for e in transitions] == [S.VALIDATING, S.WAITING_READY, S.DISPATCHING]
+    assert [e.snapshot.execution_id for e in transitions[:2]] == ['', '']
+    assert transitions[2].snapshot.execution_id == core.status.execution_id
+    assert all(e.snapshot is not core.status for e in transitions)
+    event(core, 'ACCEPTED', 1.1, accepted=True)
+    assert [e.snapshot.state for e in transitions] == [S.VALIDATING, S.WAITING_READY, S.DISPATCHING]
+
+
+def test_segment_changes_capture_each_valid_feedback_and_ignore_duplicates(approach_setup):
+    _, _, core = approach_setup
+    approach_running(core)
+    core.post('FEEDBACK', core.status.task_id, core.status.execution_id,
+              stamp=1.1, segment_state='EXECUTING', phase='platform', progress=.2)
+    core.post('FEEDBACK', core.status.task_id, core.status.execution_id,
+              stamp=1.2, segment_state='ARRIVAL_CONFIRM', phase='geometric_candidate', progress=1.)
+    effects = core.tick(1.2, ready(1.2, target_segment_id='APPROACH_A'), True)
+    changes = kinds(effects, 'SEGMENT_TRANSITION')
+    assert [e.snapshot.segment_state for e in changes] == ['EXECUTING', 'ARRIVAL_CONFIRM']
+    assert [e.snapshot.segment_progress for e in changes] == [.2, 1.]
+    assert all(e.snapshot.state == S.APPROACHING_START for e in changes)
+    assert all(e.data['event'] == 'SEGMENT_FEEDBACK' for e in changes)
+    effects = event(core, 'FEEDBACK', 1.3, stamp=1.2, segment_state='EXECUTING', phase='late')
+    assert not kinds(effects, 'SEGMENT_TRANSITION')
+    assert core.status.segment_state == 'ARRIVAL_CONFIRM'
+    effects = event(core, 'FEEDBACK', 1.4, stamp=1.4, segment_state='ARRIVAL_CONFIRM',
+                    phase='confirmed_stable', progress=1.)
+    assert len(kinds(effects, 'SEGMENT_TRANSITION')) == 1
+    assert changes[0].snapshot.phase == 'platform'
+
+
+def test_feedback_before_acceptance_preserves_checking_and_planning_order(approach_setup):
+    _, _, core = approach_setup
+    approach_dispatch(core)
+    for stamp, state, phase in ((1.01, 'CHECKING', 'checking'),
+                                (1.02, 'PLANNING', 'planning')):
+        core.post('FEEDBACK', core.status.task_id, core.status.execution_id,
+                  stamp=stamp, segment_state=state, phase=phase)
+    core.post('ACCEPTED', core.status.task_id, core.status.execution_id, accepted=True)
+    effects = core.tick(1.1, ready(1.1, target_segment_id='APPROACH_A'), True)
+    changes = kinds(effects, 'SEGMENT_TRANSITION')
+    assert [e.data['new'] for e in changes] == ['CHECKING', 'PLANNING']
+    assert [e.snapshot.state for e in changes] == [S.DISPATCHING, S.DISPATCHING]
+    assert changes[0].snapshot.phase == 'checking'
+    assert core.status.state == S.APPROACHING_START
+    assert core.status.segment_state == 'PLANNING'
+
+
+def test_early_feedback_neither_accepts_goal_nor_extends_acceptance_deadline(approach_setup):
+    _, config, core = approach_setup
+    approach_dispatch(core)
+    boundary = 1.+config['timeouts']['acceptance']
+    effects = event(core, 'FEEDBACK', boundary-.1, stamp=boundary-.1,
+                    segment_state='CHECKING', phase='checking')
+    assert len(kinds(effects, 'SEGMENT_TRANSITION')) == 1
+    assert core.status.state == S.DISPATCHING
+    effects = core.tick(boundary)
+    assert core.status.state == S.CANCELING and core.status.error_code == 'GOAL_ACCEPT_TIMEOUT'
+    assert not kinds(effects, 'SEND')
+
+
+def test_canceled_feedback_is_reported_without_completing_task_before_result(setup):
+    _, _, core = setup
+    running(core)
+    core.cancel(1.1)
+    effects = event(core, 'FEEDBACK', 1.2, stamp=1.2,
+                    segment_state='CANCELED', phase='platform', progress=.4)
+    changes = kinds(effects, 'SEGMENT_TRANSITION')
+    assert [e.data['new'] for e in changes] == ['CANCELED']
+    assert changes[0].snapshot.state == S.CANCELING
+    assert core.status.state == S.CANCELING and not core.status.downstream_terminal
+    assert core.status.completed_segments == 0 and not kinds(effects, 'TERMINAL')
+    effects = event(core, 'RESULT', 1.3, status=5, success=False,
+                    navigation_stopped=True, hold_confirmed=True)
+    assert core.status.state == S.CANCELED and len(kinds(effects, 'TERMINAL')) == 1
+    assert not kinds(effects, 'SEGMENT_TRANSITION')  # feedback already reported it
+
+
+@pytest.mark.parametrize('status,success_flag,segment_state,task_state', [
+    (4, True, 'SUCCEEDED', S.WAITING_READY),
+    (6, False, 'FAILED', S.FAILED),
+])
+def test_result_reports_segment_terminal_before_advancing_and_late_feedback_is_ignored(
+        setup, status, success_flag, segment_state, task_state):
+    _, _, core = setup
+    execution_id = running(core)
+    event(core, 'FEEDBACK', 1.1, stamp=1.1,
+          segment_state='EXECUTING', phase='stair', progress=.5)
+    effects = event(core, 'RESULT', 1.2, status=status, success=success_flag,
+                    navigation_stopped=True, hold_confirmed=True, error_code='')
+    changes = kinds(effects, 'SEGMENT_TRANSITION')
+    assert [e.data['new'] for e in changes] == [segment_state]
+    assert changes[0].data['event'] == 'SEGMENT_RESULT'
+    assert changes[0].snapshot.segment_id == 'AB'
+    assert changes[0].snapshot.execution_id == execution_id
+    assert changes[0].snapshot.segment_state == segment_state
+    assert changes[0].snapshot.downstream_terminal
+    transition_index = effects.index(changes[0])
+    assert all(e.kind != 'TRANSITION' for e in effects[:transition_index])
+    assert core.status.state == task_state
+    original = replace(core.status)
+    core.post('FEEDBACK', core.status.task_id, execution_id, stamp=1.3,
+              segment_state='EXECUTING', phase='late', progress=.2)
+    effects = core.tick(1.3)
+    assert core.status == original and not kinds(effects, 'SEGMENT_TRANSITION')
+
+
+@pytest.mark.parametrize('stage,error', [
+    ('response', 'CANCEL_RESPONSE_TIMEOUT'),
+    ('terminal', 'CANCEL_TERMINAL_TIMEOUT'),
+    ('cleanup', 'CLEANUP_TIMEOUT'),
+])
+def test_cancel_feedback_does_not_extend_deadlines_or_replace_failure_cause(setup, stage, error):
+    route, config, _ = setup
+    config['timeouts'].update(execution=.05, cancel_response=.4, cancel_terminal=.4, cleanup=.4)
+    core = MissionCore(route, config)
+    running(core)
+    core.tick(1.1)  # execution deadline initiates cancellation
+    assert core.status.state == S.CANCELING and core.status.error_code == 'EXECUTION_TIMEOUT'
+    last_feedback = core._last_feedback
+    if stage == 'terminal':
+        event(core, 'CANCEL_RESPONSE', 1.2, accepted=True)
+    elif stage == 'cleanup':
+        core.post('RESULT', core.status.task_id, core.status.execution_id, status=5, success=False,
+                  navigation_stopped=True, hold_confirmed=False)
+        core.tick(1.2)
+    for now in (1.3, 1.4):
+        core.post('FEEDBACK', core.status.task_id, core.status.execution_id,
+                  stamp=now, segment_state='ARRIVAL_CONFIRM', phase='geometric_candidate',
+                  progress=1., error_code='DOWNSTREAM_DETAIL', error_message='display only')
+        effects = core.tick(now)
+        assert core.status.state == S.CANCELING and core.status.completed_segments == 0
+        assert core.status.error_code == 'EXECUTION_TIMEOUT'
+        assert core._last_feedback == last_feedback and core._confirmation_at is None
+        assert not kinds(effects, 'TERMINAL')
+        if stage == 'cleanup':
+            assert core.status.segment_state == 'CANCELED'
+            assert not kinds(effects, 'SEGMENT_TRANSITION')
+    deadline = (1.1 if stage == 'response' else 1.2) + .4
+    core.tick(deadline+.001)
+    assert core.status.state == S.FAULT_BLOCKED and core.status.error_code == error

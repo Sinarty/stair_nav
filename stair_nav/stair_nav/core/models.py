@@ -37,6 +37,8 @@ class Waypoint:
 @dataclass
 class PlannedPath:
     points: list
+    # The exact inflated platform map used by planning; absent for stair presets.
+    collision_grid: object = field(default=None, repr=False, compare=False)
     cumulative: list = field(init=False)
     length: float = field(init=False)
 

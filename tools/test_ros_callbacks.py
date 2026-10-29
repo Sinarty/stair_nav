@@ -5,6 +5,7 @@ No ROS graph or hardware is used. Real TaskManager callback methods receive
 controlled futures/messages, including deliberately late generations.
 """
 from concurrent.futures import Future
+from copy import deepcopy
 from dataclasses import replace
 from types import SimpleNamespace
 import unittest
@@ -59,6 +60,9 @@ class Harness:
         root = Path(__file__).resolve().parents[1]
         route = load_route(root/'stair_nav/config/demo_route.yaml')
         config = load_mission(root/'stair_nav/config/inspection_mission.yaml', route)
+        # These existing callback races exercise the original three route legs.
+        # Approach behavior has its own tests below and in the core suite.
+        config.pop('approach_segment', None)
         self.route, self.config = route, config
         ids = iter(('current', 'next', 'last'))
         self.core = MissionCore(route, config, id_factory=lambda: next(ids))
@@ -274,6 +278,114 @@ class CallbackTests(unittest.TestCase):
         self.assertEqual(handle.cancel_calls, 1)
 
 
+class StatusEventHarness:
+    """Run real status/event adapters without a ROS graph or DDS scheduling."""
+    publish = TaskManager.publish
+    publish_transition = TaskManager.publish_transition
+    apply_effects = TaskManager.apply_effects
+
+    def __init__(self):
+        base = Harness()
+        self.core, self.route, self.config = base.core, base.route, base.config
+        self.core.status.state = 'IDLE'
+        self.core.status.execution_id = ''
+        self.mission_goal_id = 'goal-1'
+        self.segment_goal_ids = {}
+        self.latest_segment_feedback = None
+        self.source_instance = 'manager-instance-1'
+        self.event_sequence = 0
+        self.snapshots, self.legacy, self.events, self.feedbacks, self.logs = [], [], [], [], []
+        def publisher(items):
+            return SimpleNamespace(publish=lambda message: items.append(deepcopy(message)))
+        self.publisher = publisher(self.snapshots)
+        self.legacy_publisher = publisher(self.legacy)
+        self.event_publisher = publisher(self.events)
+        self.mission_handle = SimpleNamespace(
+            is_active=True,
+            publish_feedback=lambda message: self.feedbacks.append(deepcopy(message)))
+
+    def now(self):
+        return 20.
+
+    def get_logger(self):
+        return SimpleNamespace(info=self.logs.append)
+
+
+class StatusEventTests(unittest.TestCase):
+    def test_same_tick_transitions_keep_original_snapshots_and_order(self):
+        from stair_nav.core.mission import MissionCore, Readiness
+        manager = StatusEventHarness()
+        manager.core = MissionCore(manager.route, manager.config, id_factory=lambda: 'execution')
+        self.assertTrue(manager.core.start('inspection_demo', 'new-task', 10.))
+        effects = manager.core.tick(10., Readiness(
+            ready=True, released=True, stamp=10., target_segment_id='AB'), True)
+        transitions = [effect for effect in effects if effect.kind == 'TRANSITION']
+        self.assertEqual([effect.snapshot.state for effect in transitions],
+                         ['VALIDATING', 'WAITING_READY', 'DISPATCHING'])
+        # Delayed publication must not rewrite the captured history.
+        manager.core.status.state = 'FAILED'
+        manager.apply_effects(transitions)
+        expected = ['VALIDATING', 'WAITING_READY', 'DISPATCHING']
+        self.assertEqual([message.state for message in manager.snapshots], expected)
+        self.assertEqual([message.state for message in manager.legacy], expected)
+        self.assertEqual([message.status.state for message in manager.feedbacks], expected)
+        self.assertEqual([message.status.state for message in manager.events], expected)
+        self.assertEqual([message.sequence for message in manager.events], [1, 2, 3])
+        self.assertEqual([message.new_state for message in manager.events], expected)
+        self.assertEqual([message.old_state for message in manager.events],
+                         ['IDLE', 'VALIDATING', 'WAITING_READY'])
+        self.assertTrue(all(message.kind == 'MISSION_STATE' for message in manager.events))
+        self.assertTrue(all(message.source_instance == 'manager-instance-1'
+                            for message in manager.events))
+        self.assertTrue(all(message.status.task_id == 'new-task' for message in manager.events))
+        self.assertEqual(manager.events[-1].status.execution_id, 'execution')
+        self.assertEqual(manager.events[0].status.execution_id, '')
+
+    def test_segment_feedback_events_preserve_stage_and_do_not_claim_task_success(self):
+        from stair_nav.core.mission import MissionCore, Readiness
+        manager = StatusEventHarness()
+        manager.core = MissionCore(manager.route, manager.config, id_factory=lambda: 'execution')
+        manager.core.start('inspection_demo', 'new-task', 10.)
+        facts = Readiness(ready=True, released=True, stamp=10., target_segment_id='AB')
+        manager.core.tick(10., facts, True)
+        manager.core.post('ACCEPTED', 'new-task', 'execution', accepted=True)
+        manager.core.post('FEEDBACK', 'new-task', 'execution', stamp=10.1,
+                          segment_state='EXECUTING', phase='stair', progress=.4)
+        manager.core.post('FEEDBACK', 'new-task', 'execution', stamp=10.2,
+                          segment_state='ARRIVAL_CONFIRM', phase='geometric_candidate', progress=1.)
+        effects = manager.core.tick(10.2, facts, True)
+        manager.apply_effects([effect for effect in effects
+                               if effect.kind in ('TRANSITION', 'SEGMENT_TRANSITION')])
+        segment_events = [message for message in manager.events if message.kind == 'SEGMENT_STATE']
+        self.assertEqual([message.new_state for message in segment_events],
+                         ['EXECUTING', 'ARRIVAL_CONFIRM'])
+        self.assertEqual([message.status.phase for message in segment_events],
+                         ['stair', 'geometric_candidate'])
+        self.assertTrue(all(message.status.state == 'RUNNING' for message in segment_events))
+        self.assertTrue(all(message.status.completed_segments == 0 for message in segment_events))
+
+    def test_periodic_snapshot_does_not_create_transition_or_advance_event_sequence(self):
+        manager = StatusEventHarness()
+        message = manager.publish()
+        self.assertEqual(message.state, manager.core.status.state)
+        self.assertEqual(len(manager.snapshots), 1)
+        self.assertEqual(manager.events, [])
+        self.assertEqual(manager.event_sequence, 0)
+
+    def test_events_and_snapshots_work_without_an_action_client(self):
+        from stair_nav.core.mission import Effect, MissionStatus
+        manager = StatusEventHarness()
+        manager.mission_handle = None
+        snapshot = MissionStatus(task_id='service-task', state='VALIDATING')
+        effect = Effect('TRANSITION', 'service-task', '', '',
+                        dict(old='IDLE', new='VALIDATING', event='START',
+                             reason='Mission accepted', code='', time=10.), snapshot)
+        manager.apply_effects([effect])
+        self.assertEqual(manager.events[0].status.task_id, 'service-task')
+        self.assertEqual(manager.snapshots[0].state, 'VALIDATING')
+        self.assertEqual(manager.feedbacks, [])
+
+
 class ReadinessTests(unittest.TestCase):
     def manager(self):
         from stair_nav_interfaces.srv import GetNavigationState
@@ -303,6 +415,130 @@ class ReadinessTests(unittest.TestCase):
         self.assertTrue(facts.released)
         self.assertEqual(facts.execution_id, 'current')
         self.assertEqual(facts.target_segment_id, 'AB')
+
+    def approach_manager(self, pose=None):
+        from stair_nav.core.mission import MissionCore
+        from stair_nav.core.models import Pose
+        from stair_nav.ros_utils import pose_msg
+        manager = self.manager()
+        manager.config = dict(manager.config, approach_segment='APPROACH_A')
+        manager.core = MissionCore(manager.route, manager.config,
+                                   id_factory=lambda: 'approach-execution')
+        manager.core.start('inspection_demo', 'approach-task', 10.)
+        manager.pose = pose_msg(pose or Pose(-1., .4, 0., .6, 10., 'map'), 'map', 10.)
+        manager.snapshot.status = SegmentStatus(state='IDLE', navigation_stopped=True)
+        manager.motion.execution_id = ''
+        manager.motion.segment_id = ''
+        return manager
+
+    def test_approach_preflight_uses_live_position_without_requiring_start_at_A(self):
+        manager = self.approach_manager()
+        # The approach needs flat travel and turning, not stair capabilities.
+        manager.motion.capabilities = ['turn_in_place']
+        manager.motion.supported_modes = ['flat']
+        facts = manager.readiness(10.)
+        self.assertTrue(facts.ready, facts.reason)
+        self.assertTrue(facts.released)
+        self.assertIs(facts.at_start, False)
+        self.assertEqual(facts.target_segment_id, 'APPROACH_A')
+        effects = manager.core.tick(10., facts, True)
+        self.assertEqual([effect.segment_id for effect in effects if effect.kind == 'SEND'],
+                         ['APPROACH_A'])
+
+    def test_start_pose_check_includes_heading_and_does_not_guess_from_stale_pose(self):
+        from stair_nav.core.models import Pose
+        at_A = self.approach_manager(Pose(0., 0., 0., 0., 10., 'map'))
+        self.assertIs(at_A.readiness(10.).at_start, True)
+        turned = self.approach_manager(Pose(0., 0., 0., 1., 10., 'map'))
+        self.assertIs(turned.readiness(10.).at_start, False)
+        stale = self.approach_manager()
+        stale.pose.header.stamp = stamp(8.)
+        facts = stale.readiness(10.)
+        self.assertIsNone(facts.at_start)
+        self.assertFalse(facts.ready)
+        effects = stale.core.tick(10., facts, True)
+        self.assertFalse(any(effect.kind == 'SEND' for effect in effects))
+
+    def test_already_at_A_skips_approach_even_without_approach_turning_capability(self):
+        from stair_nav.core.models import Pose
+        manager = self.approach_manager(Pose(0., 0., 0., 0., 10., 'map'))
+        manager.motion.capabilities = ['stair_motion', 'stair_yaw_correction']
+        facts = manager.readiness(10.)
+        self.assertFalse(facts.ready, 'approach must require its own turning capability')
+        self.assertIs(facts.at_start, True)
+        effects = manager.core.tick(10., facts, True)
+        self.assertEqual(manager.core.status.segment_id, 'AB')
+        self.assertFalse(any(effect.kind == 'SEND' for effect in effects))
+        facts = manager.readiness(10.)
+        self.assertTrue(facts.ready, facts.reason)
+        effects = manager.core.tick(10., facts, True)
+        self.assertEqual([effect.segment_id for effect in effects if effect.kind == 'SEND'], ['AB'])
+
+    def test_arriving_at_A_while_waiting_skips_unneeded_approach_capabilities(self):
+        from stair_nav.core.models import Pose
+        from stair_nav.ros_utils import pose_msg
+        manager = self.approach_manager(Pose(.13, 0., 0., 0., 10., 'map'))
+        manager.motion.capabilities = ['stair_motion', 'stair_yaw_correction']
+        facts = manager.readiness(10.)
+        self.assertIs(facts.at_start, False)
+        self.assertFalse(facts.ready)
+        self.assertFalse(any(effect.kind == 'SEND' for effect in manager.core.tick(10., facts, True)))
+        # A new localization estimate settles inside A before any goal was sent.
+        manager.pose = pose_msg(Pose(.11, 0., 0., 0., 10., 'map'), 'map', 10.)
+        facts = manager.readiness(10.)
+        self.assertIs(facts.at_start, True)
+        effects = manager.core.tick(10., facts, True)
+        self.assertEqual(manager.core.status.segment_id, 'AB')
+        self.assertFalse(any(effect.kind == 'SEND' for effect in effects))
+        facts = manager.readiness(10.)
+        self.assertTrue(facts.ready, facts.reason)
+        effects = manager.core.tick(10., facts, True)
+        self.assertEqual([effect.segment_id for effect in effects if effect.kind == 'SEND'], ['AB'])
+
+    def test_leaving_A_while_waiting_rechecks_approach_before_dispatch(self):
+        from stair_nav.core.models import Pose
+        from stair_nav.ros_utils import pose_msg
+        manager = self.approach_manager(Pose(.11, 0., 0., 0., 10., 'map'))
+        manager.motion.stable = False
+        facts = manager.readiness(10.)
+        self.assertTrue(facts.at_start)
+        self.assertFalse(facts.ready)
+        manager.core.tick(10., facts, True)
+        self.assertEqual(manager.core.status.segment_id, 'AB')
+        manager.motion.stable = True
+        manager.pose = pose_msg(Pose(.13, 0., 0., 0., 10., 'map'), 'map', 10.)
+        facts = manager.readiness(10.)
+        self.assertIs(facts.at_start, False)
+        self.assertFalse(facts.ready, 'the AB start guard must reject the updated pose')
+        effects = manager.core.tick(10., facts, True)
+        self.assertEqual(manager.core.status.segment_id, 'APPROACH_A')
+        self.assertFalse(any(effect.kind == 'SEND' for effect in effects))
+        facts = manager.readiness(10.)
+        self.assertTrue(facts.ready, facts.reason)
+        effects = manager.core.tick(10., facts, True)
+        self.assertEqual([effect.segment_id for effect in effects if effect.kind == 'SEND'], ['APPROACH_A'])
+
+    def test_A_guard_is_restored_after_approach_success(self):
+        manager = self.approach_manager()
+        manager.core.tick(10., manager.readiness(10.), True)
+        manager.core.post('ACCEPTED', 'approach-task', 'approach-execution', accepted=True)
+        manager.core.tick(10., manager.readiness(10.), True)
+        manager.core.post('RESULT', 'approach-task', 'approach-execution',
+                          status=4, success=True, navigation_stopped=True, hold_confirmed=True)
+        manager.core.tick(10., manager.readiness(10.), True)
+        self.assertEqual(manager.core.status.segment_id, 'AB')
+        # Even a claimed downstream success cannot authorize AB while live
+        # localization still lies away from A.
+        manager.snapshot.status = SegmentStatus(
+            execution_id='approach-execution', segment_id='APPROACH_A',
+            state='SUCCEEDED', navigation_stopped=True)
+        manager.motion.execution_id = 'approach-execution'
+        manager.motion.segment_id = 'APPROACH_A'
+        facts = manager.readiness(10.)
+        self.assertFalse(facts.ready)
+        self.assertIs(facts.at_start, False)
+        effects = manager.core.tick(10., facts, True)
+        self.assertFalse(any(effect.kind == 'SEND' for effect in effects))
 
     def test_stale_pose_motion_and_navigation_block_preflight(self):
         for source in ('pose', 'motion', 'snapshot'):
@@ -455,8 +691,10 @@ class ReadinessTests(unittest.TestCase):
 class EarlyCancelTests(unittest.TestCase):
     def test_cancel_between_accept_and_execute_never_emits_valid_command(self):
         calls = []
+        initial_statuses, initial_feedbacks = [], []
         class Core:
             active = False
+            status = Status(task_id='task', execution_id='current', segment_id='AB', state='CHECKING')
             def start(self, task_id, execution_id, segment_id, now):
                 calls.append('start')
                 self.active = True
@@ -475,6 +713,8 @@ class EarlyCancelTests(unittest.TestCase):
             is_cancel_requested = True
             is_active = True
             canceled_called = False
+            def publish_feedback(self, message):
+                initial_feedbacks.append(message)
             def canceled(self):
                 self.canceled_called = True
         published = []
@@ -483,6 +723,9 @@ class EarlyCancelTests(unittest.TestCase):
             pending_cancel=False, goal_handle=None, completion=None,
             core=Core(), now=lambda: 10.0, period=.05,
             publish_output=published.append,
+            status_message=lambda status, now: SegmentNavigation.status_message(
+                SimpleNamespace(route={'frame': 'map'}), status, now),
+            statuses=SimpleNamespace(publish=initial_statuses.append),
             get_logger=lambda: SimpleNamespace(error=lambda message: None))
         goal = Goal()
         response = SegmentNavigation.on_cancel(harness, goal)
@@ -492,6 +735,8 @@ class EarlyCancelTests(unittest.TestCase):
         coroutine = SegmentNavigation.execute(harness, goal)
         coroutine.send(None)  # Advance the real async callback until its Future await.
         self.assertEqual(calls, ['start', 'cancel', 'tick'])
+        self.assertEqual(initial_statuses[0].state, 'CHECKING')
+        self.assertEqual(initial_feedbacks[0].status.state, 'CHECKING')
         self.assertTrue(published)
         self.assertFalse(any(output.command.valid for output in published))
         harness.completion.set_result(published[-1].status)

@@ -10,15 +10,24 @@ from pathlib import Path
 import yaml
 
 from .config import segment_config
-from .models import Command, MotionFeedback, Pose
+from .models import Command, MotionFeedback, NavError, Pose
 
 
 class Simulator:
-    def __init__(self, route):
+    def __init__(self, route, initial_pose=None):
         self.route = route
         self.settings = route.get('simulation', {})
-        initial = route['nodes'][self.settings.get('initial_node', 'A')]
-        self.pose = Pose(*initial['position'], initial['yaw'], 0.0, route['frame'])
+        initial_pose = self.settings.get('initial_pose') if initial_pose is None else initial_pose
+        if initial_pose is not None:
+            if (not isinstance(initial_pose, (list, tuple)) or len(initial_pose) != 4
+                    or not all(isinstance(value, (int, float)) and not isinstance(value, bool)
+                               and math.isfinite(value) for value in initial_pose)):
+                raise NavError('INVALID_INITIAL_POSE', 'simulation initial_pose must be finite [x, y, z, yaw]')
+            xyz_yaw = list(map(float, initial_pose))
+        else:
+            initial = route['nodes'][self.settings.get('initial_node', 'A')]
+            xyz_yaw = [*initial['position'], initial['yaw']]
+        self.pose = Pose(*xyz_yaw, 0.0, route['frame'])
         self.command = None
         self._segments = {key: segment_config(route, key) for key in route['segments']}
         self.faults = dict(not_ready=False, localization_dropout=False,
@@ -102,10 +111,8 @@ class Simulator:
     def _profile_height(self, segment_id):
         profile = self._profiles.get(segment_id)
         if profile is None:
-            # A flat platform has an explicit configured floor height.
-            segment = self.route['segments'].get(segment_id)
-            if segment and segment.get('kind') == 'platform':
-                return float(self.route['nodes'][segment['start']]['position'][2])
+            # Flat motion cannot change floors, including while holding after
+            # rejecting a goal on another platform.
             return self.pose.z
         points, cumulative = profile
         candidates = []

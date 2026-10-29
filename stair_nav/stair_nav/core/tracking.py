@@ -22,11 +22,30 @@ def _clip(value, lower, upper):
 
 
 class PurePursuit:
-    def __init__(self, path, tracking, goal_node):
+    def __init__(self, path, tracking, goal_node, command_ttl=.2):
         self.path, self.config, self.goal = path, tracking, goal_node
         self.distance, self.progress = 0.0, 0.0
         self.vx, self.wz = 0.0, 0.0
         self.last_pose = None
+        self.command_ttl = command_ttl
+
+    def _visible_target(self, pose, distance):
+        grid = self.path.collision_grid
+        target = self.path.sample(distance)
+        if grid is None:
+            return target
+        if not grid.line_is_free((pose.x, pose.y), (pose.x, pose.y)):
+            raise NavError('TRACKING_COLLISION', 'Live position left the inflated platform free space')
+        # A lookahead beyond a bend can lie across an obstacle even when the
+        # reference polyline is valid. Retreat along that polyline until visible.
+        while distance > self.distance:
+            if grid.line_is_free((pose.x, pose.y), (target.x, target.y)):
+                return target
+            distance = max(self.distance, distance-grid.resolution*.25)
+            target = self.path.sample(distance)
+        if not grid.line_is_free((pose.x, pose.y), (target.x, target.y)):
+            raise NavError('TRACKING_COLLISION', 'No visible reference point in platform free space')
+        return target
 
     def _match(self, pose):
         if len(self.path.points) == 1:
@@ -73,7 +92,8 @@ class PurePursuit:
         self.distance = max(self.distance, s)
         self.progress = self.distance/self.path.length if self.path.length > 1e-9 else 1.0
         self.last_pose = pose
-        target = self.path.sample(min(self.path.length, self.distance+self.config.get('lookahead', .6)))
+        target = self._visible_target(pose, min(
+            self.path.length, self.distance+self.config.get('lookahead', .6)))
         goal_position, arrival = self.goal['position'], self.goal.get('arrival', {})
         goal_xy = math.hypot(pose.x-goal_position[0], pose.y-goal_position[1])
         goal_z = abs(pose.z-goal_position[2])
@@ -117,6 +137,26 @@ class PurePursuit:
         # A delayed cycle never authorises one large command jump.
         dt = min(dt, .25)
         dv, dw = self.config.get('max_accel', .3)*dt, self.config.get('max_angular_accel', .6)*dt
-        self.vx = _clip(desired_vx, self.vx-dv, self.vx+dv)
-        self.wz = _clip(desired_wz, self.wz-dw, self.wz+dw)
+        old_vx, old_wz = self.vx, self.wz
+        self.vx = _clip(desired_vx, old_vx-dv, old_vx+dv)
+        self.wz = _clip(desired_wz, old_wz-dw, old_wz+dw)
+        grid = self.path.collision_grid
+        if grid is not None:
+            # Include a braking reserve so slowing begins before the command
+            # reaches the edge of the inflated free space.
+            horizon = self.command_ttl + 2*abs(self.vx)/self.config.get('max_accel', .3) + dt
+            if (not grid.motion_is_free(pose, self.vx, self.wz, horizon) or
+                    not grid.motion_is_free(pose, self.vx, self.wz, self.command_ttl)):
+                # Retain the acceleration bounds while reducing forward motion
+                # and steering toward a visible point on the validated path.
+                slow_vx = _clip(0., old_vx-dv, old_vx+dv)
+                turn = _clip(1.5*heading, -max_wz, max_wz)
+                turn = _clip(turn, old_wz-dw, old_wz+dw)
+                if not turn_allowed and abs(slow_vx) < 1e-8 and abs(turn) > 1e-8:
+                    raise NavError('TRACKING_COLLISION', 'Collision avoidance requires an unavailable in-place turn')
+                horizon = self.command_ttl + 2*abs(slow_vx)/self.config.get('max_accel', .3) + dt
+                if (not grid.motion_is_free(pose, slow_vx, turn, horizon) or
+                        not grid.motion_is_free(pose, slow_vx, turn, self.command_ttl)):
+                    raise NavError('TRACKING_COLLISION', 'No collision-free command within motion limits')
+                self.vx, self.wz = slow_vx, turn
         return TrackingOutput(self.vx, self.wz, self.progress, lateral, heading, target, matched.phase, False)

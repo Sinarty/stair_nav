@@ -1,4 +1,5 @@
 """Hardware-free adapter: integrates the actual candidate command stream."""
+from array import array
 from pathlib import Path
 import math
 
@@ -8,6 +9,7 @@ from nav_msgs.msg import Path as PathMsg, OccupancyGrid
 from geometry_msgs.msg import PoseStamped, TransformStamped
 from tf2_ros import TransformBroadcaster
 from rclpy.node import Node
+from rcl_interfaces.msg import ParameterDescriptor
 from std_srvs.srv import SetBool
 from stair_nav_interfaces.msg import ControlCommand, MotionStatus
 from stair_nav.core.config import load_route
@@ -22,8 +24,15 @@ class SimExecutor(Node):
         super().__init__('sim_executor')
         default = str(Path(get_package_share_directory('stair_nav'))/'config'/'demo_route.yaml')
         self.declare_parameter('route_file', default)
+        # An empty array retains simulation.initial_pose/initial_node. Dynamic
+        # typing accommodates ROS's ambiguous type for an empty array; a
+        # nonempty override is validated as finite numeric XYZYaw by Simulator.
+        self.declare_parameter('initial_pose', [], ParameterDescriptor(dynamic_typing=True))
         self.route = load_route(self.get_parameter('route_file').value)
-        self.sim = Simulator(self.route)
+        initial_pose = self.get_parameter('initial_pose').value
+        if isinstance(initial_pose, (list, tuple, array)):
+            initial_pose = list(initial_pose) or None
+        self.sim = Simulator(self.route, initial_pose=initial_pose)
         self.tf_broadcaster = TransformBroadcaster(self)
         self.pose_publisher = self.create_publisher(
             PoseStamped,

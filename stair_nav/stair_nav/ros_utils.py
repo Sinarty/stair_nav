@@ -7,8 +7,8 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from stair_nav.core.models import Pose
 
 
-def durable_qos():
-    return QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+def durable_qos(depth=1):
+    return QoSProfile(depth=depth, reliability=ReliabilityPolicy.RELIABLE,
                       durability=DurabilityPolicy.TRANSIENT_LOCAL)
 
 

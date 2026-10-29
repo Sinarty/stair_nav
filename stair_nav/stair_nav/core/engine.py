@@ -206,7 +206,8 @@ class SegmentExecutor:
                                 self.seg['planning'].get('join_z', 0.15)):
                             raise NavError('START_MOVED', 'Robot moved outside the validated planning start')
                         self.path = path
-                        self._tracker = PurePursuit(path, self.seg['tracking'], self.goal)
+                        self._tracker = PurePursuit(path, self.seg['tracking'], self.goal,
+                                                    self.route.get('command_ttl', .2))
                         self.status.phase = 'waiting_ready'
                         self._transition(State.WAIT_READY, now)
                 elif self.status.state == State.WAIT_READY:
@@ -248,7 +249,13 @@ class SegmentExecutor:
                         self._arrival_since = None
                         if self.status.state == State.ARRIVAL_CONFIRM:
                             self._transition(State.EXECUTING, now)
-                        vx, wz, valid = result.vx, result.wz, True
+                        vx, wz = result.vx, result.wz
+                        if (self.path.collision_grid is not None and
+                                not self.path.collision_grid.motion_is_free(
+                                    self.pose, vx, wz, self.route.get('command_ttl', .2))):
+                            raise NavError('TRACKING_COLLISION',
+                                           'Command sweep leaves inflated platform free space')
+                        valid = True
             except NavError as exc:
                 self._finish(State.FAILED, exc.code, exc.message, now)
                 valid = False

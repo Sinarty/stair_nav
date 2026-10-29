@@ -180,6 +180,9 @@ class SegmentNavigation(Node):
                     return NavigateSegment.Result(
                         success=False, error_code='BUSY', error_message='executor refused start',
                         navigation_stopped=True, hold_confirmed=False)
+                initial = self.status_message(self.core.status, self.now())
+                self.statuses.publish(initial)
+                goal_handle.publish_feedback(NavigateSegment.Feedback(status=initial))
                 if self.pending_cancel or goal_handle.is_cancel_requested:
                     self.core.cancel(self.now())
                     self.publish_output(self.core.tick(self.now(), self.period))

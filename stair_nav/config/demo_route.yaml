@@ -57,6 +57,26 @@ nodes:
     yaw: 0.0
     arrival: {xy: 0.14, z: 0.12, yaw: 0.18, progress: 0.97, confirm_seconds: 0.35, require_exit: false, require_stable: true, required_mode: flat}
 segments:
+  APPROACH_A:
+    # start supplies platform metadata; Grid A* starts at the live localization.
+    start: A
+    end: A
+    kind: platform
+    platform_id: lower_platform
+    backend: grid_astar
+    grid_file: lower_platform.yaml
+    mode: flat
+    allowed_modes: [flat]
+    required_capabilities: [turn_in_place]
+    planning:
+      simplify: true
+    tracking:
+      max_vx: 0.35
+      max_wz: 0.7
+      lookahead: 0.25
+      max_cross_track: 0.45
+      allow_turn_in_place: true
+      allow_stair_correction: false
   AB:
     start: A
     end: B

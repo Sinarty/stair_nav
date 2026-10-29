@@ -3,6 +3,8 @@
 route_id: inspection_demo
 route_file: demo_route.yaml
 sequence: [AB, BC, CD]
+# Optional same-platform navigation from the live pose to the first route node.
+approach_segment: APPROACH_A
 
 # Seconds; no automatic retries. Per-segment overrides may be placed under
 # per_segment.<segment_id>.timeouts without copying paths or coordinates.

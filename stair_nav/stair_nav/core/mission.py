@@ -5,7 +5,7 @@ both IDs; tick is the only place that consumes them. Effects describe I/O withou
 performing it. Navigation success already includes the segment arrival contract.
 """
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
 import math
@@ -23,6 +23,7 @@ class MissionState(str, Enum):
     WAITING_READY = 'WAITING_READY'
     DISPATCHING = 'DISPATCHING'
     RUNNING = 'RUNNING'
+    APPROACHING_START = 'APPROACHING_START'
     CANCELING = 'CANCELING'
     SUCCEEDED = 'SUCCEEDED'
     FAILED = 'FAILED'
@@ -59,6 +60,18 @@ def validate_mission(config, route):
             raise NavError('MISSION_CONFIG_INVALID', f'Disconnected mission at {sid}')
         previous = seg['end']
     config['sequence'] = list(sequence)
+    approach = config.get('approach_segment')
+    if 'approach_segment' in config:
+        if (not isinstance(approach, str) or not approach or
+                approach not in route['segments'] or approach in sequence):
+            raise NavError('MISSION_CONFIG_INVALID',
+                           'approach_segment must reference a separate existing segment')
+        seg = segment_config(route, approach)
+        first = segment_config(route, sequence[0])
+        if (seg['kind'] != 'platform' or seg['backend'] != 'grid_astar' or
+                seg['end'] != first['start']):
+            raise NavError('MISSION_CONFIG_INVALID',
+                           'approach_segment must use platform grid_astar and end at the mission start node')
     for key, defaults in (('timeouts', DEFAULT_TIMEOUTS), ('readiness', DEFAULT_READINESS)):
         values = config.get(key, {})
         if not isinstance(values, dict) or set(values) - set(defaults):
@@ -72,7 +85,8 @@ def validate_mission(config, route):
                   not math.isfinite(value) or value <= 0):
                 raise NavError('MISSION_CONFIG_INVALID', f'{key}.{name} must be finite and positive')
     per_segment = config.get('per_segment', {})
-    if not isinstance(per_segment, dict) or set(per_segment) - set(sequence):
+    mission_segments = set(sequence) | ({approach} if approach else set())
+    if not isinstance(per_segment, dict) or set(per_segment) - mission_segments:
         raise NavError('MISSION_CONFIG_INVALID', 'per_segment references unknown mission segment')
     for sid, override in per_segment.items():
         if not isinstance(override, dict) or set(override) - {'timeouts'}:
@@ -114,6 +128,8 @@ class Readiness:
     # Prerequisites were checked for this upcoming segment. execution_id above
     # identifies the previous execution whose control release was observed.
     target_segment_id: str = ''
+    # None means fresh localization cannot determine arrival at the main start.
+    at_start: bool | None = None
 
 
 @dataclass
@@ -122,7 +138,7 @@ class MissionStatus:
     route_id: str = ''
     execution_id: str = ''
     segment_id: str = ''
-    segment_index: int = 0  # one based; zero before a mission exists
+    segment_index: int = 0  # main sequence is one based; approach/before start is zero
     segment_count: int = 0
     completed_segments: int = 0
     state: str = MissionState.IDLE
@@ -147,6 +163,7 @@ class Effect:
     execution_id: str
     segment_id: str
     data: dict = field(default_factory=dict)
+    snapshot: MissionStatus | None = None
 
 
 class MissionCore:
@@ -154,6 +171,8 @@ class MissionCore:
         self.route = route
         self.config = validate_mission(config, route)
         self.sequence = self.config['sequence']
+        self._approach_segment = self.config.get('approach_segment')
+        self._approach_pending = False
         self.status = MissionStatus(route_id=self.config['route_id'],
                                     segment_count=len(self.sequence))
         self._new_id = id_factory or (lambda: str(uuid.uuid4()))
@@ -181,7 +200,8 @@ class MissionCore:
 
     def _effect(self, kind, **data):
         s = self.status
-        self._effects.append(Effect(kind, s.task_id, s.execution_id, s.segment_id, data))
+        snapshot = replace(s) if kind in ('TRANSITION', 'SEGMENT_TRANSITION') else None
+        self._effects.append(Effect(kind, s.task_id, s.execution_id, s.segment_id, data, snapshot))
 
     def drain_effects(self):
         effects, self._effects = self._effects, []
@@ -196,6 +216,16 @@ class MissionCore:
         self._effect('TRANSITION', old=str(old.value if isinstance(old, Enum) else old),
                      new=str(state.value if isinstance(state, Enum) else state),
                      event=event, reason=reason, code=code, time=now)
+
+    def _segment_transition(self, state, phase, now, event, code=None):
+        s = self.status
+        old_state, old_phase = s.segment_state, s.phase
+        s.segment_state, s.phase = state, phase
+        if (state, phase) != (old_state, old_phase):
+            self._effect('SEGMENT_TRANSITION', old=old_state, new=state,
+                         event=event,
+                         reason=f'phase {old_phase} → {phase}' if old_phase != phase else '',
+                         code=s.error_code if code is None else code, time=now)
 
     def _finish(self, state, now, event, code='', message=''):
         self.status.error_code = code
@@ -220,14 +250,17 @@ class MissionCore:
         self._stop_target = None
         self._cancel_at = self._cancel_ack_at = self._cleanup_at = self._stop_at = None
         self._confirmation_at = None
-        self._select(0, now)
+        self._approach_pending = bool(self._approach_segment)
+        self._select(-1 if self._approach_pending else 0, now)
         self._transition(MissionState.VALIDATING, now, 'START', 'Mission accepted')
         return True
 
-    def _select(self, index, now):
+    def _select(self, index, now, preserve_wait=False):
         s = self.status
         s.segment_index = index + 1
-        s.segment_id = self.sequence[index]
+        # The optional approach uses live localization as its planning start;
+        # it is outside the counted, static main route sequence.
+        s.segment_id = self._approach_segment if index == -1 else self.sequence[index]
         s.execution_id = ''
         s.phase = s.segment_state = ''
         s.segment_progress = 0.
@@ -235,7 +268,8 @@ class MissionCore:
         self._accepted = None
         self._result_received = False
         self._confirmation_at = None
-        self._waiting_at = now
+        if not preserve_wait:
+            self._waiting_at = now
         self._timeouts = {**self.config['timeouts'], **self.config.get(
             'per_segment', {}).get(s.segment_id, {}).get('timeouts', {})}
 
@@ -296,9 +330,12 @@ class MissionCore:
                 self._request_cancel(now)
             else:
                 self._run_at = self._last_feedback = now
-                self._transition(MissionState.RUNNING, now, 'ACCEPTED')
+                state = (MissionState.APPROACHING_START if s.segment_id == self._approach_segment
+                         else MissionState.RUNNING)
+                self._transition(state, now, 'ACCEPTED')
         elif kind == 'FEEDBACK':
-            if s.state != MissionState.RUNNING or self._result_received:
+            if s.state not in (MissionState.DISPATCHING, MissionState.RUNNING,
+                               MissionState.APPROACHING_START, MissionState.CANCELING) or self._result_received:
                 return
             sample = data.get('stamp', now)
             if (not isinstance(sample, (int, float)) or not math.isfinite(sample) or
@@ -306,17 +343,19 @@ class MissionCore:
                     sample <= getattr(self, '_last_sample', -math.inf)):
                 return
             self._last_sample = sample
-            self._last_feedback = now
-            s.phase = data.get('phase', '')
-            s.segment_state = data.get('segment_state', '')
+            canceling = s.state == MissionState.CANCELING
+            if not canceling:
+                self._last_feedback = now
             progress = data.get('progress', 0.)
             if isinstance(progress, (int, float)) and math.isfinite(progress):
                 s.segment_progress = min(1., max(0., progress))
-            if data.get('error_code'):
+            if data.get('error_code') and not canceling:
                 s.error_code = data['error_code']
                 s.error_message = data.get('error_message', '')
+            self._segment_transition(data.get('segment_state', ''), data.get('phase', ''),
+                                     now, 'SEGMENT_FEEDBACK', data.get('error_code') or s.error_code)
             confirming = s.segment_state == 'ARRIVAL_CONFIRM' or s.phase == 'geometric_candidate'
-            if confirming and self._confirmation_at is None:
+            if confirming and not canceling and self._confirmation_at is None:
                 self._confirmation_at = now
             # Once arrival confirmation has started, leaving/re-entering cannot
             # reset its mission deadline by noisy geometry feedback.
@@ -327,6 +366,12 @@ class MissionCore:
             s.downstream_terminal = True
             s.navigation_stopped = bool(data.get('navigation_stopped'))
             s.hold_confirmed = bool(data.get('hold_confirmed'))
+            # Result and feedback travel independently. Record a terminal state
+            # before selecting another segment even if its last feedback is late.
+            segment_state = {4: 'SUCCEEDED', 5: 'CANCELED', 6: 'FAILED'}.get(data.get('status'))
+            if segment_state is not None and s.segment_state != segment_state:
+                self._segment_transition(segment_state, s.phase, now, 'SEGMENT_RESULT',
+                                         data.get('error_code') or s.error_code)
             if s.blocked:
                 return  # evidence is retained for explicit reset; fault is sticky
             if self._stop_target:
@@ -334,11 +379,15 @@ class MissionCore:
                 return
             success = data.get('success') and data.get('status') == 4
             if success and s.navigation_stopped and s.hold_confirmed:
-                s.completed_segments += 1
                 s.segment_progress = 1.
-                if s.completed_segments == len(self.sequence):
+                if s.segment_id == self._approach_segment:
+                    self._select(0, now)
+                    self._transition(MissionState.WAITING_READY, now, 'APPROACH_SUCCEEDED')
+                elif s.completed_segments + 1 == len(self.sequence):
+                    s.completed_segments += 1
                     self._finish(MissionState.SUCCEEDED, now, 'LAST_SEGMENT_SUCCEEDED')
                 else:
+                    s.completed_segments += 1
                     self._select(s.completed_segments, now)
                     self._transition(MissionState.WAITING_READY, now, 'SEGMENT_SUCCEEDED')
             else:
@@ -399,6 +448,18 @@ class MissionCore:
             # Constructor validated the route references before accepting any I/O.
             self._transition(MissionState.WAITING_READY, now, 'VALIDATED')
         if s.state == MissionState.WAITING_READY:
+            target_changed = False
+            start_known = readiness.at_start is True or readiness.at_start is False
+            if self._approach_pending:
+                # Localization may settle while capabilities, service or
+                # release evidence are still missing. Keep the decision open
+                # until the first goal is actually dispatched.
+                if start_known:
+                    index = 0 if readiness.at_start else -1
+                    target = self.sequence[0] if index == 0 else self._approach_segment
+                    if target != s.segment_id:
+                        self._select(index, now, preserve_wait=True)
+                        target_changed = True
             # A queued result may have selected another segment after the
             # adapter evaluated readiness. Only facts for this target can send.
             if not server_ready and now - self._waiting_at >= self._timeouts['service']:
@@ -407,8 +468,11 @@ class MissionCore:
             elif now - self._waiting_at >= self._timeouts['ready']:
                 self._finish(MissionState.FAILED, now, 'TIMEOUT', 'READY_TIMEOUT',
                              readiness.reason or 'Readiness or downstream synchronization unavailable')
-            elif (server_ready and readiness.ready and readiness.released and
+            elif (not target_changed and
+                  (not self._approach_pending or start_known) and
+                  server_ready and readiness.ready and readiness.released and
                   readiness.target_segment_id == s.segment_id):
+                self._approach_pending = False
                 s.execution_id = self._new_id()
                 self._accepted = None
                 self._result_received = False
@@ -423,7 +487,7 @@ class MissionCore:
             if now - self._dispatch_at >= self._timeouts['acceptance']:
                 self._begin_stop('FAILED', 'GOAL_ACCEPT_TIMEOUT',
                                  'Acceptance unknown; cancel late accepted handle; no retry', now, 'TIMEOUT')
-        elif s.state == MissionState.RUNNING:
+        elif s.state in (MissionState.RUNNING, MissionState.APPROACHING_START):
             if now - self._run_at >= self._timeouts['execution']:
                 self._begin_stop('FAILED', 'EXECUTION_TIMEOUT', 'Segment execution exceeded mission deadline', now, 'TIMEOUT')
             elif (self._confirmation_at is not None and

@@ -21,10 +21,12 @@ def run_case(name, route, mission, output_dir, domain):
     from action_msgs.msg import GoalStatus
     from rclpy.action import ActionClient
     from rclpy.node import Node
+    from geometry_msgs.msg import PoseStamped
     from std_srvs.srv import SetBool, Trigger
     from stair_nav_interfaces.action import ExecuteMission, NavigateSegment
-    from stair_nav_interfaces.msg import MissionStatus, SegmentStatus, MotionStatus
+    from stair_nav_interfaces.msg import MissionEvent, MissionStatus, SegmentStatus, MotionStatus
     from stair_nav.ros_utils import durable_qos, live_qos
+    from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
     processes, logs = {}, []
     env = dict(os.environ)
@@ -49,13 +51,21 @@ def run_case(name, route, mission, output_dir, domain):
     manager_args = ['-p', 'autostart:=false']
     if mission is not None:
         manager_args += ['-p', f'mission_file:={mission}']
-    launch('simulator', 'sim_executor')
+    sim_args = ['-p', 'initial_pose:=[-1.0, 0.4, 0.0, 0.6]'] if name.startswith('approach') else []
+    if name == 'approach_outside':
+        sim_args = ['-p', 'initial_pose:=[-20.0, 0.4, 0.0, 0.6]']
+    elif name == 'approach_obstacle':
+        sim_args = ['-p', 'initial_pose:=[-1.9, 0.9, 0.0, -1.0]']
+    elif name == 'approach_corner':
+        sim_args = ['-p', 'initial_pose:=[-2.0, 0.5, 0.0, 0.0]']
+    launch('simulator', 'sim_executor', sim_args)
     launch('navigation', 'segment_navigation')
     launch('manager', 'task_manager', manager_args)
     rclpy.init()
     node = Node(f'mission_smoke_{name}')
     latest = {'mission': None, 'navigation': None, 'motion': None}
-    nav_history, mission_history, feedback = [], [], []
+    nav_history, mission_history, feedback, events = [], [], [], []
+    approach_trajectory = []
     def on_navigation(msg):
         latest['navigation'] = msg
         nav_history.append((msg.segment_id, msg.execution_id, msg.state, msg.error_code,
@@ -63,8 +73,17 @@ def run_case(name, route, mission, output_dir, domain):
     def on_mission(msg):
         latest['mission'] = msg
         mission_history.append((msg.task_id, msg.segment_id, msg.state, msg.error_code))
+    def on_pose(msg):
+        navigation = latest['navigation']
+        if navigation is None or navigation.segment_id in ('', 'APPROACH_A'):
+            position = msg.pose.position
+            approach_trajectory.append((position.x, position.y))
+    node.create_subscription(PoseStamped, '/localization/pose', on_pose, live_qos(20))
     node.create_subscription(SegmentStatus, '/navigation/status', on_navigation, durable_qos())
     node.create_subscription(MissionStatus, '/mission/status', on_mission, durable_qos())
+    node.create_subscription(MissionEvent, '/mission/events', events.append, QoSProfile(
+        depth=100, reliability=ReliabilityPolicy.RELIABLE,
+        durability=DurabilityPolicy.TRANSIENT_LOCAL))
     node.create_subscription(MotionStatus, '/motion/status',
                              lambda msg: latest.update(motion=msg), live_qos(5))
     action = ActionClient(node, ExecuteMission, '/execute_mission')
@@ -106,6 +125,27 @@ def run_case(name, route, mission, output_dir, domain):
         return response
     def assert_no_later_segment():
         assert not any(sid in ('BC', 'CD') and execution for sid, execution, *_ in nav_history), nav_history
+    def assert_events(task_id, final_state):
+        wait(lambda: any(message.status.task_id == task_id and
+                         message.kind == 'MISSION_STATE' and message.new_state == final_state
+                         for message in events))
+        current = [message for message in events if message.status.task_id == task_id]
+        assert current and len({message.source_instance for message in current}) == 1
+        numbers = [message.sequence for message in current]
+        assert numbers == list(range(numbers[0], numbers[-1]+1)), numbers
+        states = [message.new_state for message in current if message.kind == 'MISSION_STATE']
+        assert states[0] == 'VALIDATING', states
+        if any(state in ('DISPATCHING', 'RUNNING', 'APPROACHING_START') for state in states):
+            assert 'WAITING_READY' in states, states
+        assert states[-1] == final_state, states
+        for message in current:
+            if message.kind == 'MISSION_STATE':
+                assert message.new_state == message.status.state, message
+            elif message.kind == 'SEGMENT_STATE':
+                assert message.new_state == message.status.segment_state, message
+            else:
+                raise AssertionError(f'unknown event kind {message.kind}')
+        return current
     started = time.monotonic()
     try:
         wait(lambda: action.server_is_ready() and segment.server_is_ready() and
@@ -128,7 +168,7 @@ def run_case(name, route, mission, output_dir, domain):
         if name == 'early_cancel':
             canceled = result(handle.cancel_goal_async())
             assert canceled.goals_canceling, 'mission early cancellation rejected'
-        elif name == 'normal':
+        elif name in ('normal', 'approach', 'approach_obstacle', 'approach_corner'):
             second = goal()
             assert not second.accepted, 'busy manager accepted another mission'
             response = completed(handle, timeout=90)
@@ -139,11 +179,35 @@ def run_case(name, route, mission, output_dir, domain):
             for sid, execution, state, *_ in nav_history:
                 if execution and state not in ('IDLE',) and (sid, execution) not in executions:
                     executions.append((sid, execution))
-            assert [sid for sid, _ in executions] == ['AB', 'BC', 'CD'], executions
-            assert len({execution for _, execution in executions}) == 3
+            expected = ['AB', 'BC', 'CD'] if name == 'normal' else ['APPROACH_A', 'AB', 'BC', 'CD']
+            assert [sid for sid, _ in executions] == expected, executions
+            assert len({execution for _, execution in executions}) == len(expected)
             assert latest['mission'].completed_segments == 3
             assert latest['mission'].segment_index == 3 and latest['mission'].segment_count == 3
             assert feedback and all(msg.task_id == response.result.task_id for msg in feedback)
+            current_events = assert_events(response.result.task_id, 'SUCCEEDED')
+            approaching = [message for message in current_events
+                           if message.kind == 'MISSION_STATE' and message.new_state == 'APPROACHING_START']
+            if name != 'normal':
+                assert approaching, 'missing approach transition'
+                assert all(message.status.segment_id == 'APPROACH_A' and
+                           message.status.segment_index == 0 and
+                           message.status.segment_count == 3 and
+                           message.status.completed_segments == 0 for message in approaching)
+            else:
+                assert not approaching, 'already at A but approach was executed'
+            if name in ('approach_obstacle', 'approach_corner'):
+                import yaml
+                from stair_nav.core.config import load_route, segment_config
+                from stair_nav.core.planning import OccupancyGrid
+                route_config = load_route(route)
+                segment_configured = segment_config(route_config, 'APPROACH_A')
+                grid_file = Path(route_config['_base_dir'])/segment_configured['grid_file']
+                grid = OccupancyGrid.from_mapping(yaml.safe_load(grid_file.read_text()),
+                                                  segment_configured['planning'])
+                assert len(approach_trajectory) > 50, 'missing approach localization samples'
+                assert all(grid.line_is_free(a, b) for a, b in
+                           zip(approach_trajectory, approach_trajectory[1:])), 'approach clearance violated'
             # A newly created durable subscriber receives the current terminal snapshot.
             late = []
             node.create_subscription(MissionStatus, '/mission/status', late.append, durable_qos())
@@ -151,7 +215,16 @@ def run_case(name, route, mission, output_dir, domain):
             assert late[-1].state == 'SUCCEEDED' and late[-1].task_id == response.result.task_id
             return dict(case=name, passed=True, segments=executions,
                         busy_rejected=True, late_monitor_received=True,
+                        ordered_events=len(current_events),
+                        checked_approach_edges=len(approach_trajectory)-1,
                         elapsed_seconds=round(time.monotonic()-started, 3))
+        elif name == 'approach_cancel':
+            wait(lambda: latest['mission'] is not None and
+                 latest['mission'].state == 'APPROACHING_START' and
+                 latest['navigation'] is not None and
+                 latest['navigation'].segment_id == 'APPROACH_A' and nav_is('EXECUTING'))
+            canceled = result(handle.cancel_goal_async())
+            assert canceled.goals_canceling, 'approach cancellation rejected'
         elif name in ('cancel', 'localization_stale', 'transport_timeout', 'restart_no_resume'):
             wait(lambda: nav_is('EXECUTING'))
             if name == 'cancel':
@@ -185,13 +258,18 @@ def run_case(name, route, mission, output_dir, domain):
         elif name == 'missing_exit':
             # Start fault before the AB geometric candidate can be reached.
             fault('missing_exit')
-        elif name != 'ready_timeout':
+        elif name not in ('ready_timeout', 'approach_outside'):
             raise ValueError(f'unknown scenario {name}')
         response = completed(handle, timeout=45)
         final = response.result
         assert not final.success, final
         assert_no_later_segment()
-        if name in ('cancel', 'early_cancel'):
+        if name.startswith('approach'):
+            assert not any(sid in ('AB', 'BC', 'CD') and execution
+                           for sid, execution, *_ in nav_history), nav_history
+            assert latest['mission'].completed_segments == 0
+        current_events = assert_events(final.task_id, final.state)
+        if name in ('cancel', 'early_cancel', 'approach_cancel'):
             assert response.status == GoalStatus.STATUS_CANCELED, response
             assert final.state == 'CANCELED', final
             assert final.navigation_stopped
@@ -214,9 +292,12 @@ def run_case(name, route, mission, output_dir, domain):
             elif name == 'missing_exit':
                 assert final.error_code in ('ARRIVAL_CONFIRM_TIMEOUT', 'CONFIRMATION_TIMEOUT'), final
                 assert any(geometry for _, _, _, _, geometry in nav_history)
+            elif name == 'approach_outside':
+                assert final.error_code == 'INVALID_START', final
         return dict(case=name, passed=True, state=final.state, error_code=final.error_code,
                     navigation_stopped=final.navigation_stopped,
                     hold_confirmed=final.hold_confirmed,
+                    ordered_events=len(current_events),
                     elapsed_seconds=round(time.monotonic()-started, 3))
     finally:
         node.destroy_node()
@@ -235,7 +316,7 @@ def main():
     parser.add_argument('--mission', type=Path)
     parser.add_argument('--output-dir', type=Path, default=Path('/tmp/stair_nav_mission_smoke'))
     parser.add_argument('--domain-base', type=int, default=151)
-    parser.add_argument('--cases', default='normal,cancel,early_cancel,ready_timeout,localization_stale,missing_exit,transport_timeout,restart_no_resume')
+    parser.add_argument('--cases', default='normal,approach,approach_obstacle,approach_corner,approach_cancel,approach_outside,cancel,early_cancel,ready_timeout,localization_stale,missing_exit,transport_timeout,restart_no_resume')
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     outcomes = []

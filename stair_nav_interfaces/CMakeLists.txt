@@ -10,6 +10,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ChannelEvent.msg"
   "msg/SegmentStatus.msg"
   "msg/MissionStatus.msg"
+  "msg/MissionEvent.msg"
   "srv/GetNavigationState.srv"
   "action/NavigateSegment.action"
   "action/ExecuteMission.action"

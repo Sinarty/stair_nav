@@ -21,10 +21,10 @@ from rclpy.task import Future
 from std_srvs.srv import Trigger
 from unique_identifier_msgs.msg import UUID
 from stair_nav_interfaces.action import ExecuteMission, NavigateSegment
-from stair_nav_interfaces.msg import MissionStatus, MotionStatus, SegmentStatus
+from stair_nav_interfaces.msg import MissionEvent, MissionStatus, MotionStatus, SegmentStatus
 from stair_nav_interfaces.srv import GetNavigationState
 from stair_nav.core.config import load_route, segment_config
-from stair_nav.core.mission import MissionCore, Readiness, load_mission
+from stair_nav.core.mission import Effect, MissionCore, Readiness, load_mission
 from stair_nav.ros_utils import durable_qos, live_qos, pose_from_msg, seconds, stamp
 
 
@@ -52,6 +52,9 @@ class TaskManager(Node):
         self.lock = RLock()
         self.group = ReentrantCallbackGroup()
         self.publisher = self.create_publisher(MissionStatus, '/mission/status', durable_qos())
+        self.event_publisher = self.create_publisher(MissionEvent, '/mission/events', durable_qos(100))
+        self.source_instance = str(uuid.uuid4())
+        self.event_sequence = 0
         self.legacy_publisher = self.create_publisher(SegmentStatus, '/task/status', durable_qos())
         self.client = ActionClient(self, NavigateSegment, '/navigate_segment', callback_group=self.group)
         self.state_client = self.create_client(GetNavigationState, '/navigation/get_state',
@@ -93,7 +96,9 @@ class TaskManager(Node):
         self.mission_goal_id = ''
         self.autostart_pending = bool(self.get_parameter('autostart').value)
         self.create_timer(.05, self.timer, callback_group=self.group)
-        self.publish()
+        self.publish_transition(Effect('TRANSITION', '', '', '', dict(
+            old='', new='IDLE', event='INITIALIZED', reason='Task manager ready',
+            code='', time=self.now()), deepcopy(self.core.status)))
 
     def now(self):
         return self.get_clock().now().nanoseconds * 1e-9
@@ -191,30 +196,32 @@ class TaskManager(Node):
             if not set(seg['allowed_modes']).issubset(set(m.supported_modes)):
                 ready = False
                 reasons.append('required motion modes unsupported')
+        at_start = None
         try:
             if self.pose is None or not self._fresh(self.pose.header, settings['pose_max_age'], now):
                 raise ValueError('localization missing/stale')
             p = pose_from_msg(self.pose)
             if not all(math.isfinite(v) for v in (p.x, p.y, p.z, p.yaw)):
                 raise ValueError('localization invalid')
+            first = segment_config(self.route, self.config['sequence'][0])
+            start = self.route['nodes'][first['start']]
+            target, a = start['position'], start['arrival']
+            yaw_error = abs(math.atan2(math.sin(p.yaw-start['yaw']), math.cos(p.yaw-start['yaw'])))
+            at_start = (math.hypot(p.x-target[0], p.y-target[1]) <= a['xy'] and
+                        abs(p.z-target[2]) <= a['z'] and yaw_error <= a['yaw'])
             if (check_start and settings.get('require_start_node', True) and
+                    sid != self.config.get('approach_segment') and
                     self.core.status.completed_segments == 0 and
                     self.core.status.state in ('IDLE', 'VALIDATING', 'WAITING_READY',
                                                'SUCCEEDED', 'FAILED', 'CANCELED', 'FAULT_BLOCKED')):
-                first = segment_config(self.route, self.config['sequence'][0])
-                start = self.route['nodes'][first['start']]
-                target = start['position']
-                a = start['arrival']
-                yaw_error = abs(math.atan2(math.sin(p.yaw-start['yaw']), math.cos(p.yaw-start['yaw'])))
-                if (math.hypot(p.x-target[0], p.y-target[1]) > a['xy'] or
-                        abs(p.z-target[2]) > a['z'] or yaw_error > a['yaw']):
+                if not at_start:
                     raise ValueError(f'robot must first reach start node {first["start"]}')
         except (ValueError, TypeError, AttributeError) as exc:
             ready = False
             reasons.append(str(exc))
         return Readiness(ready=ready, released=released, execution_id=execution_id,
                          stamp=observed, reason='; '.join(reasons), server_instance=server_instance,
-                         target_segment_id=sid)
+                         target_segment_id=sid, at_start=at_start)
 
     def poll_snapshot(self, now):
         if self.snapshot_future is not None:
@@ -404,13 +411,14 @@ class TaskManager(Node):
                         self.pending_terminal = terminal
                     else:
                         self.mission_completion.set_result(terminal)
-            elif effect.kind == 'TRANSITION':
+            elif effect.kind in ('TRANSITION', 'SEGMENT_TRANSITION'):
                 self.get_logger().info(json.dumps(dict(
                     task_id=effect.task_id, segment_id=effect.segment_id,
                     execution_id=effect.execution_id,
                     goal_id=self.mission_goal_id,
                     segment_goal_id=self.segment_goal_ids.get(key, ''), **effect.data),
                     ensure_ascii=False, sort_keys=True))
+                self.publish_transition(effect)
 
     def deliver_terminal(self):
         if (self.pending_terminal is not None and self.mission_handle is not None and
@@ -500,8 +508,25 @@ class TaskManager(Node):
             except Exception as exc:
                 self.core.post('ERROR', task_id, execution_id, operation='result', message=str(exc))
 
-    def publish(self):
-        status = self.core.status
+    def publish_transition(self, effect):
+        """Publish the captured state, including states crossed within one tick."""
+        status = effect.snapshot
+        if status is None:
+            return
+        msg = self.publish(status=status)
+        self.event_sequence += 1
+        data = effect.data
+        event = MissionEvent(
+            source_instance=self.source_instance, sequence=self.event_sequence,
+            kind='MISSION_STATE' if effect.kind == 'TRANSITION' else 'SEGMENT_STATE',
+            old_state=data['old'], new_state=data['new'], event=data['event'],
+            reason=data['reason'], error_code=data['code'], status=msg)
+        event.header.stamp = stamp(data['time'])
+        event.header.frame_id = self.route['frame']
+        self.event_publisher.publish(event)
+
+    def publish(self, status=None):
+        status = self.core.status if status is None else status
         now = self.now()
         msg = MissionStatus()
         for name in STATUS_FIELDS:
@@ -528,6 +553,7 @@ class TaskManager(Node):
         self.legacy_publisher.publish(legacy)
         if self.mission_handle is not None and self.mission_handle.is_active:
             self.mission_handle.publish_feedback(ExecuteMission.Feedback(status=msg))
+        return msg
 
     def destroy_node(self):
         with self.lock:

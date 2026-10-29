@@ -1,4 +1,6 @@
 # Published heartbeat/snapshot time in the configured ROS clock and map frame.
+# /mission/status contains the latest snapshot; /mission/events carries ordered
+# transitions, including brief intermediate states between heartbeat updates.
 std_msgs/Header header
 # Snapshot lease. A cached terminal state is historical once this expires.
 builtin_interfaces/Time valid_until

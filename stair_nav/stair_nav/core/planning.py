@@ -189,17 +189,61 @@ class OccupancyGrid:
         return (self.origin[0]+(cell[0]+.5)*self.resolution,
                 self.origin[1]+(cell[1]+.5)*self.resolution)
 
-    def line_is_free(self, a, b):
+    def line_is_free(self, a, b, margin=0.):
         if not self.free(self.cell(*a)) or not self.free(self.cell(*b)):
             return False
-        lo = self.cell(min(a[0], b[0])-1e-10, min(a[1], b[1])-1e-10)
-        hi = self.cell(max(a[0], b[0])+1e-10, max(a[1], b[1])+1e-10)
+        if margin and (min(a[0], b[0])-margin < self.origin[0] or
+                       min(a[1], b[1])-margin < self.origin[1] or
+                       max(a[0], b[0])+margin >= self.origin[0]+self.width*self.resolution or
+                       max(a[1], b[1])+margin >= self.origin[1]+self.height*self.resolution):
+            return False
+        lo = self.cell(min(a[0], b[0])-margin-1e-10, min(a[1], b[1])-margin-1e-10)
+        hi = self.cell(max(a[0], b[0])+margin+1e-10, max(a[1], b[1])+margin+1e-10)
         for y in range(max(0, lo[1]), min(self.height-1, hi[1])+1):
             for x in range(max(0, lo[0]), min(self.width-1, hi[0])+1):
                 if (x, y) in self.blocked:
                     xmin, ymin = self.origin[0]+x*self.resolution, self.origin[1]+y*self.resolution
-                    if _intersects_rectangle(a, b, xmin, ymin, xmin+self.resolution, ymin+self.resolution):
+                    if _intersects_rectangle(a, b, xmin-margin, ymin-margin,
+                                             xmin+self.resolution+margin, ymin+self.resolution+margin):
                         return False
+        return True
+
+    def motion_is_free(self, pose, vx, wz, duration):
+        """Check the whole constant-twist command, including its curved sweep.
+
+        Each short arc is enclosed by its chord expanded by an upper bound on
+        the arc/chord deviation and midpoint position integration error. The
+        map already includes the configured radius.
+        """
+        if (not _finite((pose.x, pose.y, pose.yaw, vx, wz, duration)) or duration < 0):
+            return False
+        if not self.line_is_free((pose.x, pose.y), (pose.x, pose.y)):
+            return False
+        if vx == 0 or duration == 0:
+            return True
+        if not _finite((vx*duration, wz*duration)):
+            return False
+        steps = max(1, math.ceil(abs(vx)*duration/(self.resolution*.25)),
+                    math.ceil(abs(wz)*duration/.05))
+        # Keep validation bounded inside the periodic control callback.
+        if steps > 4096:
+            return False
+        step = duration/steps
+        # Also enclose midpoint integration for any partition of this lifetime,
+        # including one delayed simulator/control step spanning the whole TTL.
+        integration_margin = (abs(vx)*duration)*(wz*duration)**2/24
+        x, y, yaw = pose.x, pose.y, pose.yaw
+        for _ in range(steps):
+            angle = wz*step
+            half = angle*.5
+            scale = math.sin(half)/half if abs(half) > 1e-12 else 1.
+            nx = x+vx*step*scale*math.cos(yaw+half)
+            ny = y+vx*step*scale*math.sin(yaw+half)
+            # |acceleration| = |vx*wz| bounds deviation from the chord.
+            margin = abs(vx*wz)*step*step/8 + integration_margin
+            if not self.line_is_free((x, y), (nx, ny), margin):
+                return False
+            x, y, yaw = nx, ny, yaw+angle
         return True
 
 
@@ -254,6 +298,11 @@ class GridAStarBackend(PlanningBackend):
         else:
             coordinates = [(pose.x, pose.y)] + [grid.centre(cell) for cell in cells] + [(goal[0], goal[1])]
         coordinates = [p for i, p in enumerate(coordinates) if not i or math.dist(p, coordinates[i-1]) > 1e-8]
+        # The target-cell centre can lie beyond the exact goal, making the
+        # terminal polyline pass through the goal and double back. Remove that
+        # detour only when the direct endpoint join is collision-free.
+        if len(coordinates) >= 3 and grid.line_is_free(coordinates[-3], coordinates[-1]):
+            coordinates.pop(-2)
         if options.get('simplify', False) and len(coordinates) > 2:
             simplified, i = [coordinates[0]], 0
             while i < len(coordinates)-1:
@@ -268,7 +317,7 @@ class GridAStarBackend(PlanningBackend):
         if any(not grid.line_is_free(a, b) for a, b in zip(coordinates, coordinates[1:])):
             raise NavError('PATH_COLLISION', 'Output path failed conservative post-planning collision validation')
         return PlannedPath([Waypoint(x, y, grid.height_z, 'platform', segment.get('mode', 'flat'))
-                            for x, y in coordinates])
+                            for x, y in coordinates], collision_grid=grid)
 
 
 BACKENDS = {'preset_path': PresetPathBackend(), 'grid_astar': GridAStarBackend()}

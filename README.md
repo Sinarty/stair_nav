@@ -9,7 +9,7 @@
 
 实际执行的构建、测试、节点联调结论与复现方法见 [docs/VALIDATION.md](docs/VALIDATION.md)。纯核心演示可按下文命令生成本地 JSON 结果。
 
-两个包已完成构建；就绪守卫修复后的 123 项核心测试、29 项 ROS 回调测试和 8 个任务 Action 场景全部通过。新增任务状态机的接口、状态转移表、故障复位与启动方法见 [docs/MISSION.md](docs/MISSION.md)，本次执行结果见 [验证记录](docs/VALIDATION.md)。RViz 实拍见 [演示截图](docs/rviz_demo.png)。
+两个包已完成构建；接近净空与派发前起点重判修复后的 210 项核心测试、39 项 ROS 回调测试和 13 个任务 Action 场景全部通过。任务状态机的接口、状态转移表、故障复位与启动方法见 [docs/MISSION.md](docs/MISSION.md)，前端字段与事件约定见 [前端协议](docs/FRONTEND.md)，本次执行结果见 [验证记录](docs/VALIDATION.md)。RViz 历史实拍见 [演示截图](docs/rviz_demo.png)。
 
 ## 1. 工程结构与职责
 
@@ -103,7 +103,7 @@ ros2 topic echo /mission/status --qos-durability transient_local
 ros2 service call /task_manager/cancel std_srvs/srv/Trigger '{}'
 ```
 
-原 `/task_manager/start` Trigger 和 `/task/status` SegmentStatus 保持兼容；新客户端应使用任务 Action 和 `/mission/status`。段执行器也可单独被其他任务调度器调用，但不能与活动任务并行争用；下面的执行 ID 只可使用一次：
+原 `/task_manager/start` Trigger 和 `/task/status` SegmentStatus 保持兼容；新客户端使用任务 Action、`/mission/status` 当前快照和 `/mission/events` 逐转换事件。启动参数与前端字段约定见 [前端协议](docs/FRONTEND.md)。段执行器也可单独被其他任务调度器调用，但不能与活动任务并行争用；下面的执行 ID 只可使用一次：
 
 ```bash
 ros2 action send_goal /navigate_segment stair_nav_interfaces/action/NavigateSegment \
@@ -112,7 +112,7 @@ ros2 action send_goal /navigate_segment stair_nav_interfaces/action/NavigateSegm
 
 Action 客户端优先使用目标句柄取消。使用旧 cancel 服务取消 Action 任务时，语义结果 `state=CANCELED`，ROS 目标协议状态为 ABORTED；通过 Action 取消握手则为 CANCELED。已派发的任务均需等待下游终态、保持、稳定和释放；派发前取消没有取得控制权，不伪造 hold_confirmed。
 
-任务启动要求实时定位已经处于 A 的配置容差内。现有工程没有到 A 的独立接近段，真实机器人需先通过已有系统到达 A；任务层不虚构接近路径。任务结束不自动回 A，重做合成测试需启动全新模拟流程。任务节点重启不续跑旧任务，先查询下游状态；执行状态不明时的复位条件见 [任务文档](docs/MISSION.md)。
+任务默认配置 `approach_segment: APPROACH_A`：已在 A 的位置、高度、朝向容差内则跳过；否则使用实时定位在下层平台栅格中规划至 A，确认到达后再执行三段主路线。接近时 `state=APPROACHING_START`、`segment_index=0`，不增加主路线计数。可用 `ros2 launch stair_nav demo.launch.py autostart:=false initial_pose:='[-1.0, 0.4, 0.0, 0.6]'` 测试不同起点。地图和初始位姿均为软件模拟配置，真实部署需提供站点平台地图。任务结束不自动回 A，当前接近地图不跨楼层。任务节点重启不续跑旧任务，先查询下游状态；执行状态不明时的复位条件见 [任务文档](docs/MISSION.md)。
 
 ### 无 ROS 闭环与回归测试
 
@@ -220,6 +220,8 @@ Pure Pursuit 在当前段的路径上进行三维线段投影，匹配评分包�
 
 跟踪器根据参考点计算 `vx/wz`，限制速度、转向及变化率，在终点前减速，超出横向或高度阈值时返回明确错误。常规跟踪指令受变化率限制；取消、异常和进入确认阶段时直接撤销有效性，不用渐变的有效速度掩盖撤销。执行频率默认 20 Hz，默认候选指令 TTL 为 0.2 秒。
 
+平台栅格导航同时复核实际候选运动的完整 TTL 曲线扫掠，使用规划时相同的膨胀栅格；跟踪器在障碍前减速和调整方向，执行器独立拒绝不安全输出。无法满足净空与运动限制时返回 `TRACKING_COLLISION` 并撤销速度。接近 A 的决定在首个导航目标派发前随最新定位更新，切换目标不重置等待期限。
+
 几何到达同时检查目标水平距离、高度、朝向和路径进度，之后进入 `ARRIVAL_CONFIRM`，此时状态只表示 `geometric_candidate`。仍需等待当前执行 ID 的出梯、稳定、模式和 HOLD 反馈，并持续满足配置的确认时间。缺失整机反馈会等待并最终报 `ARRIVAL_CONFIRM_TIMEOUT`，不会提前宣告 B/C 成功。确认中几何条件失效会重新进入执行；下一段重新使用实时定位，不假定恰好停在标注节点。
 
 ## 6. 状态机与停止语义
@@ -242,7 +244,7 @@ Pure Pursuit 在当前段的路径上进行三维线段投影，匹配评分包�
 | 任意活动状态 | 定位过期、阻塞、时钟异常等 | `FAILED`，撤销指令 |
 | 执行/确认中 | 反馈过期、故障、ready 丢失、超时/偏离等 | `FAILED`，撤销指令 |
 
-任务管理器按 [inspection_mission.yaml](stair_nav/config/inspection_mission.yaml) 串行发送三个 Action；只在最终 CD 的确认成功结果后发布整个任务 `SUCCEEDED`。`MissionStatus.state` 是任务状态，`segment_state/phase/segment_progress` 展示下层进度；当前段的进度不是整条任务的距离比例。完整任务状态转换表见 [任务文档](docs/MISSION.md)。
+任务管理器按 [inspection_mission.yaml](stair_nav/config/inspection_mission.yaml) 按需发送接近 A 的 Action，再串行发送三个主段 Action；只在最终 CD 的确认成功结果后发布整个任务 `SUCCEEDED`。`MissionStatus.state` 是任务状态，`segment_state/phase/segment_progress` 展示下层进度；当前段的进度不是整条任务的距离比例。每次状态变化会捕获快照并发布 `/mission/events`，周期状态快照仍持续发布。完整任务状态转换表见 [任务文档](docs/MISSION.md)。
 
 `navigation_stopped=true` 只意味着导航已停止产生有效速度指令；`hold_confirmed=true` 才是适配器当前反馈的保持确认。段 Action 取消/失败可以在保持确认之前返回，结果中的两个字段必须分别读取；之后 `/navigation/status` 会继续反映当前反馈。任务层继续等待保持、稳定和释放确认。零速度或无效指令本身都不能证明机器人已在楼梯上安全停稳。真实适配器收到 HOLD 或 TTL 过期后，需要执行与当前运动阶段相符的保持/退出策略，并依据真实传感器和策略状态报告结果。
 
@@ -257,6 +259,7 @@ Pure Pursuit 在当前段的路径上进行三维线段投影，匹配评分包�
 | `/navigate_segment` | `NavigateSegment` Action | 请求含 task/execution/segment ID；反馈为 `SegmentStatus`；结果含成功、错误码、停止及保持确认；ROS Action 默认服务/反馈 QoS，结果保留 60 秒 |
 | `/execute_mission` | `ExecuteMission` Action | route_id 请求；结构化任务反馈与一次性终态结果；忙碌/故障阻塞时拒绝 |
 | `/mission/status` | `MissionStatus` | Reliable、TransientLocal、KeepLast(1)，任务/路线/段计数、任务状态与下层阶段、错误、取消阶段及有效期 |
+| `/mission/events` | `MissionEvent` | Reliable、TransientLocal、KeepLast(100)，每次任务/下层状态变化的实例 ID、序号、前后状态、原因及当时快照 |
 | `/navigation/get_state` | `GetNavigationState` Service | 下游节点实例、忙碌/预留、控制释放及当前段快照 |
 | `/localization/pose` | `geometry_msgs/PoseStamped` | Reliable、Volatile、KeepLast(5)，观测时间与路线 frame |
 | `/motion/status` | `MotionStatus` | Reliable、Volatile、KeepLast(5)，持续发布当前 ID、ready、模式、能力、出梯/稳定/保持及故障 |

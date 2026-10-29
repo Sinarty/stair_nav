@@ -29,12 +29,9 @@ coverage.xml
 *.log
 *.log.*
 
-# 本地验证产物；Git 只保留验证结论、复现命令和文档插图
+# 本地文档与验证产物
 /artifacts/
-/docs/*_logs/
-/docs/*_tests.xml
-/docs/*_results.json
-/docs/headless_demo.json
+/docs/
 
 # ROS 录包数据
 rosbag2_*/
