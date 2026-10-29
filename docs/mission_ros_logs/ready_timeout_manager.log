@@ -1,0 +1,10 @@
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+[37;1m2026-10-28 20:12:50.682 [31;1m[[37;1mTRANSPORT[31;1m Error] [37mAll whitelist interfaces were filtered out[34;1m -> Function [36mUDPv4Transport[m
+[37;1m2026-10-28 20:12:50.682 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[37;1m2026-10-28 20:12:50.682 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[INFO] [1793189570.874159461] [task_manager]: {"code": "", "event": "START", "execution_id": "", "goal_id": "1a179713431343a2819537b116464ba7", "new": "VALIDATING", "old": "IDLE", "reason": "Mission accepted", "segment_goal_id": "", "segment_id": "AB", "task_id": "f96b6ffa-e71c-4a84-8b86-f5ed8f6aa42e", "time": 1793189570.84335}
+[INFO] [1793189570.876135168] [task_manager]: {"code": "", "event": "VALIDATED", "execution_id": "", "goal_id": "1a179713431343a2819537b116464ba7", "new": "WAITING_READY", "old": "VALIDATING", "reason": "", "segment_goal_id": "", "segment_id": "AB", "task_id": "f96b6ffa-e71c-4a84-8b86-f5ed8f6aa42e", "time": 1793189570.8744211}
+[INFO] [1793189575.873729774] [task_manager]: {"code": "READY_TIMEOUT", "event": "TIMEOUT", "execution_id": "", "goal_id": "1a179713431343a2819537b116464ba7", "new": "FAILED", "old": "WAITING_READY", "reason": "motion unavailable: not ready", "segment_goal_id": "", "segment_id": "AB", "task_id": "f96b6ffa-e71c-4a84-8b86-f5ed8f6aa42e", "time": 1793189575.8712924}

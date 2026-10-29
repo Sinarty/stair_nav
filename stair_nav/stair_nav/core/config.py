@@ -28,6 +28,7 @@ def load_route(filename):
     try:
         with open(filename, encoding='utf-8') as stream:
             route = yaml.safe_load(stream)
+        route['_source_file'] = str(Path(filename).resolve())
         route['_base_dir'] = str(Path(filename).resolve().parent)
         validate_route(route)
         return route

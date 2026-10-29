@@ -9,7 +9,7 @@
 
 实际执行的构建、测试、节点联调结果见 [docs/VALIDATION.md](docs/VALIDATION.md)；可复现的纯核心演示记录见 [docs/headless_demo.json](docs/headless_demo.json)。
 
-已实际通过：两个 ROS 包构建、70 项核心测试、13 项 ROS 回调/入口测试，以及三段正常任务和七种取消/故障场景。RViz 实拍见 [演示截图](docs/rviz_demo.png)。
+两个包已完成构建；就绪守卫修复后的 123 项核心测试、29 项 ROS 回调测试和 8 个任务 Action 场景全部通过。新增任务状态机的接口、状态转移表、故障复位与启动方法见 [docs/MISSION.md](docs/MISSION.md)，本次执行结果见 [验证记录](docs/VALIDATION.md)。RViz 实拍见 [演示截图](docs/rviz_demo.png)。
 
 ## 1. 工程结构与职责
 
@@ -21,9 +21,10 @@ stair_nav/                          # ament_python 包
     planning.py                     # 统一后端、preset_path、grid_astar
     tracking.py                     # 三维匹配 + Pure Pursuit + 指令限制
     engine.py                       # 同一套段执行状态机、规划工作线程
+    mission.py                      # 无 ROS 的任务状态机、事件与副作用
     simulation.py                   # 速度积分与模拟运控反馈
   stair_nav/segment_node.py          # /navigate_segment Action 服务端
-  stair_nav/task_node.py             # 串行任务客户端、任务取消与超时监视
+  stair_nav/task_node.py             # 任务 Action、异步段客户端、预检/取消/复位
   stair_nav/sim_node.py              # 模拟定位/运控 ROS 节点
   stair_nav/demo.py                  # 无 ROS、确定时钟闭环演示
   config/                           # 路线、带阶段路径、单平台合成栅格
@@ -31,15 +32,16 @@ stair_nav/                          # ament_python 包
   rviz/demo.rviz
   test/                             # 核心与生命周期回归测试
 stair_nav_interfaces/                # 独立 msg/action 接口包
-  action/NavigateSegment.action
-  msg/{ControlCommand,MotionStatus,SegmentStatus,ChannelEvent}.msg
+  action/{NavigateSegment,ExecuteMission}.action
+  msg/{ControlCommand,MotionStatus,SegmentStatus,ChannelEvent,MissionStatus}.msg
+  srv/GetNavigationState.srv         # 只读下游忙碌/控制释放同步
 tools/ros_action_smoke.py            # 真正经 ROS Action/topic/service 的场景测试
 docs/VALIDATION.md                   # 实际验证记录与边界
 ```
 
-`task_manager` 只负责按 `sequence` 调度和报告任务；`segment_navigation` 使用同一个 `SegmentExecutor` 执行每个导航段；`sim_executor` 是可被真实适配器替换的执行端。规划计算在独立线程池运行，ROS 定时器继续处理定位、跟踪和取消。ROS 段节点使用多线程 Executor、可重入回调组及锁，核心方法由调用者串行访问。
+`task_manager` 的 `MissionCore` 拥有任务状态，按任务配置 `sequence` 调度，进行开始条件检查、分类超时、取消清理和故障阻塞；`segment_navigation` 使用原 `SegmentExecutor` 执行每个导航段，并唯一负责段完成判断；`sim_executor` 是可被真实适配器替换的执行端。任务层不发布速度。两个 ROS 层使用多线程 Executor、可重入回调组及锁，事件队列串行裁决任务转换，规划计算继续使用独立线程池。
 
-任务管理器每次生成新的 `task_id`，每段生成新的 `execution_id`。Action 目标接收时即预留执行器，同一时间只允许一个段请求；忙碌时拒绝新请求，不抢占。取消后，等待旧目标终态再发新目标。客户端通过任务代次和执行 ID 过滤迟到反馈/结果；段执行器只消费当前规划 Future，迟到旧规划无法覆盖新路径。执行 ID 在该服务进程生命周期内不得复用。
+任务管理器每次生成新的 `task_id`，每段生成新的 `execution_id`，并记录双方 Action 目标 UUID。目标接收时即预留任务/执行器，忙碌时拒绝新请求，不抢占。取消意图一旦接受就不再派发后续段；旧目标终态以及当前执行的新鲜保持、稳定和控制释放确认后才完成取消。接受状态或控制释放不明时进入 `FAULT_BLOCKED`，拒绝新任务。执行 ID 在该服务进程生命周期内不得复用。
 
 ## 2. 构建与启动
 
@@ -55,16 +57,16 @@ rosdep install --from-paths stair_nav_interfaces stair_nav --ignore-src -r -y
 
 `rosdep` 安装依赖需要系统安装权限及网络。本工程的核心测试无需启动 ROS 图。
 
-### 在当前工程内构建（不改动相邻工程的构建目录）
+### 从 ROS 工作区根目录构建
 
 ```bash
 source /opt/ros/humble/setup.bash
-cd /home/syf/ros2_ws/src/stair_nav
-colcon --log-base .colcon/log build \
-  --base-paths stair_nav_interfaces stair_nav \
-  --packages-select stair_nav_interfaces stair_nav \
-  --build-base .colcon/build --install-base .colcon/install --symlink-install
-source .colcon/install/setup.bash
+cd /home/syf/ros2_ws
+colcon --log-base /tmp/stair_nav_mission_log build \
+  --base-paths src/stair_nav/stair_nav_interfaces src/stair_nav/stair_nav \
+  --packages-up-to stair_nav --build-base /tmp/stair_nav_mission_build \
+  --install-base /tmp/stair_nav_mission_install --symlink-install
+source /tmp/stair_nav_mission_install/setup.bash
 ros2 launch stair_nav demo.launch.py
 ```
 
@@ -74,12 +76,12 @@ ros2 launch stair_nav demo.launch.py
 ros2 launch stair_nav demo.launch.py rviz:=false
 ```
 
-也可以使用常规工作区构建，两个方案选一个：
+上面将产物放在 `/tmp`，避免覆盖既有工作区。也可在同一工作区根目录使用常规构建目录，两个方案选一个：
 
 ```bash
 cd /home/syf/ros2_ws
 source /opt/ros/humble/setup.bash
-colcon build --packages-select stair_nav_interfaces stair_nav --symlink-install
+colcon build --packages-up-to stair_nav --symlink-install
 source install/setup.bash
 ros2 launch stair_nav demo.launch.py
 ```
@@ -95,19 +97,22 @@ ros2 launch stair_nav demo.launch.py autostart:=false
 在另一个已 source 的终端：
 
 ```bash
-ros2 service call /task_manager/start std_srvs/srv/Trigger '{}'
-ros2 topic echo /task/status --qos-durability transient_local
+ros2 action send_goal /execute_mission stair_nav_interfaces/action/ExecuteMission \
+  '{route_id: inspection_demo}' --feedback
+ros2 topic echo /mission/status --qos-durability transient_local
 ros2 service call /task_manager/cancel std_srvs/srv/Trigger '{}'
 ```
 
-段执行器也可单独被其他任务调度器调用；下面的执行 ID 只可使用一次，重试时换新 ID：
+原 `/task_manager/start` Trigger 和 `/task/status` SegmentStatus 保持兼容；新客户端应使用任务 Action 和 `/mission/status`。段执行器也可单独被其他任务调度器调用，但不能与活动任务并行争用；下面的执行 ID 只可使用一次：
 
 ```bash
 ros2 action send_goal /navigate_segment stair_nav_interfaces/action/NavigateSegment \
   '{task_id: manual-inspection-1, execution_id: manual-ab-attempt-1, segment_id: AB}' --feedback
 ```
 
-任务完成或故障后不会把机器人复位到 A。再次请求整条路线时仍从实时定位接入 AB；若已在 D 或超出 AB 入口范围，会明确拒绝。重做合成测试请结束并重新启动演示进程，每个新的模拟进程才从配置的初始点开始。
+Action 客户端优先使用目标句柄取消。使用旧 cancel 服务取消 Action 任务时，语义结果 `state=CANCELED`，ROS 目标协议状态为 ABORTED；通过 Action 取消握手则为 CANCELED。已派发的任务均需等待下游终态、保持、稳定和释放；派发前取消没有取得控制权，不伪造 hold_confirmed。
+
+任务启动要求实时定位已经处于 A 的配置容差内。现有工程没有到 A 的独立接近段，真实机器人需先通过已有系统到达 A；任务层不虚构接近路径。任务结束不自动回 A，重做合成测试需启动全新模拟流程。任务节点重启不续跑旧任务，先查询下游状态；执行状态不明时的复位条件见 [任务文档](docs/MISSION.md)。
 
 ### 无 ROS 闭环与回归测试
 
@@ -123,9 +128,10 @@ PYTHONPATH=stair_nav python3 -m pytest -q stair_nav/test
 构建后可运行 ROS 场景验证脚本，每个场景启动一套全新模拟节点，结果和节点日志保存到输出目录：
 
 ```bash
-source .colcon/install/setup.bash
+source /tmp/stair_nav_mission_install/setup.bash
 python3 tools/test_ros_callbacks.py
 python3 tools/ros_action_smoke.py --output-dir /tmp/stair_nav_ros_smoke
+python3 tools/mission_smoke.py --output-dir /tmp/stair_nav_mission_smoke
 ```
 
 `--cases immediate_cancel` 单独检查目标刚接受时取消；`--cases transport_timeout` 会中止脚本自己启动的段导航进程，检查任务通信超时与忙碌保护。它们均只操作测试自己的模拟节点。
@@ -153,7 +159,7 @@ python3 tools/ros_action_smoke.py --output-dir /tmp/stair_nav_ros_smoke
 
 | 配置区域 | 主要字段与含义 |
 |---|---|
-| 全局 | `frame`、`reference_point`、显式 `sequence`、`control_period`、`command_ttl`、`task_transport_timeout` |
+| 全局 | `frame`、`reference_point`、显式 `sequence`、`control_period`、`command_ttl`；旧 `task_transport_timeout` 由任务配置中的分类超时替代 |
 | `nodes.A/B/C/D` | 三维 `position`、`yaw`、`arrival` 到达区域及确认要求 |
 | `arrival` | `xy` 为水平圆半径，`z` 为高度绝对误差，`yaw` 为朝向误差，`progress` 为三维弧长进度下限；单位为 m/rad；`confirm_seconds` 为持续确认时间 |
 | 到达整机条件 | `require_exit`、`require_stable`、`required_mode`；`require_hold` 默认 true，可显式配置 |
@@ -234,11 +240,11 @@ Pure Pursuit 在当前段的路径上进行三维线段投影，匹配评分包�
 | 任意活动状态 | 定位过期、阻塞、时钟异常等 | `FAILED`，撤销指令 |
 | 执行/确认中 | 反馈过期、故障、ready 丢失、超时/偏离等 | `FAILED`，撤销指令 |
 
-任务管理器按配置串行发送三个 Action；只在最终 CD 的结果成功后发布整个任务 `SUCCEEDED`。段终态反馈在任务话题中显示为 `SEGMENT_SUCCEEDED/FAILED/CANCELED`，避免把第一段完成误读成整条路线完成。`progress` 在执行中是当前段进度，不是整条任务的距离比例。
+任务管理器按 [inspection_mission.yaml](stair_nav/config/inspection_mission.yaml) 串行发送三个 Action；只在最终 CD 的确认成功结果后发布整个任务 `SUCCEEDED`。`MissionStatus.state` 是任务状态，`segment_state/phase/segment_progress` 展示下层进度；当前段的进度不是整条任务的距离比例。完整任务状态转换表见 [任务文档](docs/MISSION.md)。
 
-`navigation_stopped=true` 只意味着导航已停止产生有效速度指令；`hold_confirmed=true` 才是适配器当前反馈的保持确认。Action 取消/失败可以在保持确认之前返回，结果中的两个字段必须分别读取；之后 `/navigation/status` 会继续反映当前反馈。零速度或无效指令本身都不能证明机器人已在楼梯上安全停稳。真实适配器收到 HOLD 或 TTL 过期后，需要执行与当前运动阶段相符的保持/退出策略，并依据真实传感器和策略状态报告结果。
+`navigation_stopped=true` 只意味着导航已停止产生有效速度指令；`hold_confirmed=true` 才是适配器当前反馈的保持确认。段 Action 取消/失败可以在保持确认之前返回，结果中的两个字段必须分别读取；之后 `/navigation/status` 会继续反映当前反馈。任务层继续等待保持、稳定和释放确认。零速度或无效指令本身都不能证明机器人已在楼梯上安全停稳。真实适配器收到 HOLD 或 TTL 过期后，需要执行与当前运动阶段相符的保持/退出策略，并依据真实传感器和策略状态报告结果。
 
-任务 Action 接受/反馈失联超过 `task_transport_timeout` 后，任务进入 `TRANSPORT_TIMEOUT`，请求取消并保持 BUSY；没有终态确认时不接受新任务，也不把导航停止或整机保持标为已确认。执行端本身仍须独立实现 TTL 看门狗。恢复时应先核实运控实际状态，再处理节点/任务恢复。
+任务层分别监视服务、接受、执行、反馈、到达确认、取消响应、终态和清理超时。接受状态不明时等待迟到句柄并取消；取消或清理超时进入 `FAULT_BLOCKED`，拒绝新任务。恢复需先核实原目标结局及真实保持/稳定、控制释放，再调用 `/task_manager/reset`；未解析目标不能强制复位。执行端本身仍须独立实现 TTL 看门狗。
 
 ## 7. ROS 接口、时间戳与 QoS
 
@@ -247,19 +253,22 @@ Pure Pursuit 在当前段的路径上进行三维线段投影，匹配评分包�
 | 接口 | 类型 | QoS / 用途 |
 |---|---|---|
 | `/navigate_segment` | `NavigateSegment` Action | 请求含 task/execution/segment ID；反馈为 `SegmentStatus`；结果含成功、错误码、停止及保持确认；ROS Action 默认服务/反馈 QoS，结果保留 60 秒 |
+| `/execute_mission` | `ExecuteMission` Action | route_id 请求；结构化任务反馈与一次性终态结果；忙碌/故障阻塞时拒绝 |
+| `/mission/status` | `MissionStatus` | Reliable、TransientLocal、KeepLast(1)，任务/路线/段计数、任务状态与下层阶段、错误、取消阶段及有效期 |
+| `/navigation/get_state` | `GetNavigationState` Service | 下游节点实例、忙碌/预留、控制释放及当前段快照 |
 | `/localization/pose` | `geometry_msgs/PoseStamped` | Reliable、Volatile、KeepLast(5)，观测时间与路线 frame |
 | `/motion/status` | `MotionStatus` | Reliable、Volatile、KeepLast(5)，持续发布当前 ID、ready、模式、能力、出梯/稳定/保持及故障 |
 | `/navigation/command` | `ControlCommand` | Reliable、Volatile、KeepLast(1)，候选速度/模式/阶段、valid、valid_until、TRACK/HOLD |
 | `/navigation/channel_event` | `ChannelEvent` | Reliable、Volatile、KeepLast(5)，外部通道 blocked/clear 事件 |
 | `/navigation/status` | `SegmentStatus` | Reliable、TransientLocal、KeepLast(1)，当前段执行快照，含误差、进度和错误 |
-| `/task/status` | `SegmentStatus` | Reliable、TransientLocal、KeepLast(1)，当前任务及当前段状态 |
+| `/task/status` | `SegmentStatus` | Reliable、TransientLocal、KeepLast(1)，兼容旧客户端的任务/段快照 |
 | `/navigation/reference_path` | `nav_msgs/Path` | Reliable、TransientLocal、KeepLast(1)，当前几何参考路径；新目标开始时先清空旧路径 |
 | `/navigation/reference_point` | `geometry_msgs/PoseStamped` | Reliable、TransientLocal、KeepLast(1)，当前前视参考点，供可视化 |
 | `/navigation/scene` | `visualization_msgs/MarkerArray` | Reliable、TransientLocal、KeepLast(1)，节点与平台/楼梯区域 |
 | `/simulation/trajectory` | `nav_msgs/Path` | Reliable、TransientLocal、KeepLast(1)，模拟实际轨迹，最多 4000 个采样点 |
 | `/simulation/platform_grid` | `nav_msgs/OccupancyGrid` | Reliable、TransientLocal、KeepLast(1)，合成平台原始栅格可视化 |
 | `/tf` | `tf2_msgs/TFMessage` | 仅模拟端使用标准动态 TF QoS 广播 `map → simulation_nav_reference`；来自同一积分位姿，仅供显示/调试，不是首版定位输入 |
-| `/task_manager/start`、`/task_manager/cancel` | `std_srvs/Trigger` | 显式任务启动/取消 |
+| `/task_manager/start`、`/task_manager/cancel`、`/task_manager/reset` | `std_srvs/Trigger` | 兼容启动/取消，以及带守卫的故障重新同步 |
 | `/sim_executor/<fault>` | `std_srvs/SetBool` | 仅模拟端的故障开关 |
 
 `SegmentStatus` 至少包含 `task_id/execution_id/segment_id/phase/state/progress/lateral_error/heading_error/error_code/error_message`，并给出几何候选、导航停止及 HOLD 确认。运动反馈须回显收到的当前 `execution_id/segment_id`；旧 ID 或同 ID 的乱序反馈不会覆盖最新状态。
@@ -334,7 +343,8 @@ PYTHONPATH=stair_nav python3 -m stair_nav.demo --cancel-at 2
 真实系统采用独立启动文件，必须传入已经核实的路线文件；它不启动模拟端，也不自动发任务：
 
 ```bash
-ros2 launch stair_nav navigation.launch.py route_file:=/absolute/path/site_route.yaml
+ros2 launch stair_nav navigation.launch.py route_file:=/absolute/path/site_route.yaml \
+  mission_file:=/absolute/path/site_mission.yaml
 ```
 
 接入顺序建议如下：

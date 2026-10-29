@@ -1,0 +1,9 @@
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+[37;1m2026-10-28 20:12:49.590 [31;1m[[37;1mTRANSPORT[31;1m Error] [37mAll whitelist interfaces were filtered out[34;1m -> Function [36mUDPv4Transport[m
+[37;1m2026-10-28 20:12:49.590 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[37;1m2026-10-28 20:12:49.590 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[INFO] [1793189569.752001538] [task_manager]: {"code": "", "event": "START", "execution_id": "", "goal_id": "41291cecaedc440f8276105eb3a4bda3", "new": "VALIDATING", "old": "IDLE", "reason": "Mission accepted", "segment_goal_id": "", "segment_id": "AB", "task_id": "b9d38127-abd4-4a73-8e39-ccbc91f09201", "time": 1793189569.7206976}
+[INFO] [1793189569.752338172] [task_manager]: {"code": "CANCELED", "event": "CANCEL", "execution_id": "", "goal_id": "41291cecaedc440f8276105eb3a4bda3", "new": "CANCELED", "old": "VALIDATING", "reason": "Task cancellation requested", "segment_goal_id": "", "segment_id": "AB", "task_id": "b9d38127-abd4-4a73-8e39-ccbc91f09201", "time": 1793189569.7521064}

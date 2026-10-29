@@ -1,0 +1,38 @@
+[INFO] [launch]: All log files can be found below /tmp/stair_nav_legacy_mission_smoke/ros_logs/2026-10-28-20-14-02-299784-user-MS-7E07-197
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [sim_executor-1]: process started with pid [206]
+[INFO] [segment_navigation-2]: process started with pid [208]
+[INFO] [task_manager-3]: process started with pid [210]
+[segment_navigation-2] getifaddrs: Operation not permitted
+[segment_navigation-2] getifaddrs: Operation not permitted
+[segment_navigation-2] getifaddrs: Operation not permitted
+[segment_navigation-2] getifaddrs: Operation not permitted
+[segment_navigation-2] [37;1m2026-10-28 20:14:02.510 [31;1m[[37;1mTRANSPORT[31;1m Error] [37mAll whitelist interfaces were filtered out[34;1m -> Function [36mUDPv4Transport[m
+[segment_navigation-2] [37;1m2026-10-28 20:14:02.510 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[segment_navigation-2] [37;1m2026-10-28 20:14:02.510 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[task_manager-3] getifaddrs: Operation not permitted
+[task_manager-3] getifaddrs: Operation not permitted
+[task_manager-3] getifaddrs: Operation not permitted
+[task_manager-3] getifaddrs: Operation not permitted
+[task_manager-3] [37;1m2026-10-28 20:14:02.528 [31;1m[[37;1mTRANSPORT[31;1m Error] [37mAll whitelist interfaces were filtered out[34;1m -> Function [36mUDPv4Transport[m
+[task_manager-3] [37;1m2026-10-28 20:14:02.528 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[task_manager-3] [37;1m2026-10-28 20:14:02.528 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[sim_executor-1] getifaddrs: Operation not permitted
+[sim_executor-1] getifaddrs: Operation not permitted
+[sim_executor-1] getifaddrs: Operation not permitted
+[sim_executor-1] getifaddrs: Operation not permitted
+[sim_executor-1] [37;1m2026-10-28 20:14:02.558 [31;1m[[37;1mTRANSPORT[31;1m Error] [37mAll whitelist interfaces were filtered out[34;1m -> Function [36mUDPv4Transport[m
+[sim_executor-1] [37;1m2026-10-28 20:14:02.558 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[sim_executor-1] [37;1m2026-10-28 20:14:02.558 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[segment_navigation-2] [INFO] [1793189642.575409609] [segment_navigation]: segment Action ready; candidate controls require an explicit adapter
+[sim_executor-1] [INFO] [1793189642.612162043] [sim_executor]: SYNTHETIC simulation: velocity integration only; no stair dynamics or real hardware
+[segment_navigation-2] [INFO] [1793189642.617980444] [segment_navigation]: segment= execution= state=IDLE phase= error= 
+[segment_navigation-2] [INFO] [1793189642.641899100] [segment_navigation]: segment=AB execution=354f9552-ad59-483f-b17c-6c997aa3c3cb state=CANCELED phase=checking error=CANCELED Navigation revoked; adapter HOLD requested
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [task_manager-3]: sending signal 'SIGINT' to process[task_manager-3]
+[INFO] [segment_navigation-2]: sending signal 'SIGINT' to process[segment_navigation-2]
+[INFO] [sim_executor-1]: sending signal 'SIGINT' to process[sim_executor-1]
+[INFO] [sim_executor-1]: process has finished cleanly [pid 206]
+[INFO] [task_manager-3]: process has finished cleanly [pid 210]
+[ERROR] [segment_navigation-2]: process[segment_navigation-2] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+[INFO] [segment_navigation-2]: process has finished cleanly [pid 208]

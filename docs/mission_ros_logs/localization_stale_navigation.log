@@ -1,0 +1,13 @@
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+[37;1m2026-10-28 20:12:56.777 [31;1m[[37;1mTRANSPORT[31;1m Error] [37mAll whitelist interfaces were filtered out[34;1m -> Function [36mUDPv4Transport[m
+[37;1m2026-10-28 20:12:56.777 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[37;1m2026-10-28 20:12:56.777 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[INFO] [1793189576.840992805] [segment_navigation]: segment Action ready; candidate controls require an explicit adapter
+[INFO] [1793189576.883048937] [segment_navigation]: segment= execution= state=IDLE phase= error= 
+[INFO] [1793189577.348858683] [segment_navigation]: segment=AB execution=1fd48bb9-af74-4ba6-9a2d-0a85aa34a687 state=PLANNING phase=planning error= 
+[INFO] [1793189577.391387039] [segment_navigation]: segment=AB execution=1fd48bb9-af74-4ba6-9a2d-0a85aa34a687 state=WAIT_READY phase=waiting_ready error= 
+[INFO] [1793189577.435213174] [segment_navigation]: segment=AB execution=1fd48bb9-af74-4ba6-9a2d-0a85aa34a687 state=EXECUTING phase=waiting_ready error= 
+[INFO] [1793189577.986809576] [segment_navigation]: segment=AB execution=1fd48bb9-af74-4ba6-9a2d-0a85aa34a687 state=FAILED phase=entry error=POSE_STALE Localization timestamp exceeded its freshness limit

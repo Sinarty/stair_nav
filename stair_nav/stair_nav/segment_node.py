@@ -1,5 +1,6 @@
 """ROS Action wrapper around the non-ROS segment execution state machine."""
 import math
+import uuid
 from copy import deepcopy
 from pathlib import Path
 from threading import RLock
@@ -15,6 +16,7 @@ from rclpy.node import Node
 from rclpy.task import Future
 from visualization_msgs.msg import Marker, MarkerArray
 from stair_nav_interfaces.action import NavigateSegment
+from stair_nav_interfaces.srv import GetNavigationState
 from stair_nav_interfaces.msg import ControlCommand, MotionStatus, SegmentStatus, ChannelEvent
 from stair_nav.core.config import load_route
 from stair_nav.core.engine import SegmentExecutor
@@ -35,6 +37,9 @@ class SegmentNavigation(Node):
         self.reserved = False
         self.reserved_execution_id = ''
         self.pending_cancel = False
+        self.server_instance = str(uuid.uuid4())
+        self.latest_motion = None
+        self.last_status = None
         self.seen_ids = set()
         self.goal_handle = None
         self.completion = None
@@ -57,6 +62,8 @@ class SegmentNavigation(Node):
             goal_callback=self.on_goal, cancel_callback=self.on_cancel,
             callback_group=self.group, result_timeout=60,
         )
+        self.create_service(GetNavigationState, '/navigation/get_state', self.get_state,
+                            callback_group=self.group)
         self.period = float(self.route.get('control_period', 0.05))
         self.last_tick = self.now()
         self.create_timer(self.period, self.tick, callback_group=self.group)
@@ -86,7 +93,36 @@ class SegmentNavigation(Node):
             fault_message=msg.fault_message, capabilities=tuple(msg.capabilities),
             supported_modes=tuple(msg.supported_modes))
         with self.lock:
+            previous = getattr(self, 'latest_motion', None)
+            if (math.isfinite(feedback.stamp) and feedback.stamp <= self.now() + .1 and
+                    (previous is None or feedback.stamp >= previous.stamp)):
+                self.latest_motion = feedback
             self.core.update_motion(feedback)
+
+    def get_state(self, request, response):
+        """Snapshot reservations and release evidence under the execution lock."""
+        with self.lock:
+            now = self.now()
+            response.header.stamp = stamp(now)
+            response.header.frame_id = self.route['frame']
+            response.server_instance = self.server_instance
+            response.busy = bool(self.reserved or self.core.active)
+            status = self.core.status
+            m = self.latest_motion
+            max_age = float(self.route.get('defaults', {}).get('timeouts', {}).get('status', .5))
+            fresh = m is not None and -0.1 <= now - m.stamp <= max_age
+            initial = status.state == 'IDLE' and not status.execution_id
+            idle_release = bool(initial and fresh and not m.execution_id and m.stable
+                                and not m.fault_code)
+            terminal_release = bool(not initial and fresh and
+                                    m.execution_id == status.execution_id and
+                                    m.segment_id == status.segment_id and
+                                    status.state in ('SUCCEEDED', 'FAILED', 'CANCELED') and
+                                    status.navigation_stopped and m.hold_confirmed and
+                                    m.stable and not m.fault_code)
+            response.control_released = bool(not response.busy and (idle_release or terminal_release))
+            response.status = self.status_message(status, now)
+        return response
 
     def on_channel(self, msg):
         now = self.now()
@@ -197,9 +233,7 @@ class SegmentNavigation(Node):
                     if terminal and cancel_ready:
                         self.completion.set_result(output.status)
 
-    def publish_output(self, output):
-        now = self.now()
-        status = output.status
+    def status_message(self, status, now):
         msg = SegmentStatus()
         for field in ('task_id', 'execution_id', 'segment_id', 'phase', 'state',
                       'progress', 'lateral_error', 'heading_error', 'error_code',
@@ -207,6 +241,13 @@ class SegmentNavigation(Node):
             setattr(msg, field, getattr(status, field))
         msg.header.stamp = stamp(now)
         msg.header.frame_id = self.route['frame']
+        return msg
+
+    def publish_output(self, output):
+        now = self.now()
+        status = output.status
+        msg = self.status_message(status, now)
+        self.last_status = msg
         self.statuses.publish(msg)
         command = output.command
         if command.execution_id:

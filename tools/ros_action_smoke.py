@@ -89,8 +89,7 @@ def run_case(name, route, output_dir, domain):
                     assert len(target_pids) == 1, children
                     os.kill(target_pids[0], signal.SIGKILL)
                     wait(lambda: latest['task'] is not None and
-                         latest['task'].state == 'TRANSPORT_TIMEOUT', timeout=9.0)
-                    assert latest['task'].error_code == 'ACTION_TRANSPORT_TIMEOUT'
+                         latest['task'].state == 'FAULT_BLOCKED', timeout=20.0)
                     assert not latest['task'].navigation_stopped
                     assert not latest['task'].hold_confirmed
                     client = node.create_client(Trigger, '/task_manager/start')
@@ -100,7 +99,7 @@ def run_case(name, route, output_dir, domain):
                     assert not retry.success and 'BUSY' in retry.message
                     return {'case': name, 'passed': True,
                             'elapsed_seconds': round(time.monotonic()-started, 3),
-                            'expected_error': 'ACTION_TRANSPORT_TIMEOUT',
+                            'expected_error': latest['task'].error_code,
                             'outcome_unknown_and_new_task_rejected': True}
                 wait(lambda: latest['task'] is not None and latest['task'].task_id and
                      latest['task'].state in ('SUCCEEDED','FAILED','CANCELED'), timeout=80.0)

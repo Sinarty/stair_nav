@@ -1,6 +1,8 @@
 # 实际验证记录
 
-验证日期：2026-10-28（Asia/Shanghai）。环境为 Ubuntu 22.04、Python 3.10.12、ROS 2 Humble；当前目录最初无业务代码，未修改旁边的其他 ROS 包。构建产物放在本项目 `.colcon/`，未写入已有工作区 build/install。
+## 原规划/跟踪版本记录
+
+以下至“任务状态机增量验证”之前为原规划/跟踪版本的历史记录，验证日期：2026-10-28（Asia/Shanghai）。环境为 Ubuntu 22.04、Python 3.10.12、ROS 2 Humble；当时构建产物放在本项目 `.colcon/`，未写入已有工作区 build/install。任务状态机增量采用工作区根目录构建，新的执行结果单独记录，旧结果不能视为新增代码已验证。
 
 ## 执行结果
 
@@ -61,3 +63,85 @@ python3 tools/ros_action_smoke.py --cases immediate_cancel \
 - 所有跟踪参数为演示值。真实楼梯中的转向、原地转向、倒退及水平速度到策略速度的换算，需要按实际能力和策略响应标定。
 - 模拟不包含台阶接触、打滑、动力学、机体倾斜或定位协方差。真实系统的碰撞监控、紧急停机和安全控制链仍由对应系统承担。
 - Action 通信超时后保留任务忙碌，避免未知执行结果下竞争任务；恢复时需先由运控/操作方确认执行与保持状态，再受控重启或重建任务。这是当前首版的保守恢复边界。
+
+## 任务状态机增量验证
+
+本次验证从 `/home/syf/ros2_ws` 根目录构建 `stair_nav_interfaces` 与 `stair_nav`，产物位于 `/tmp/stair_nav_mission_build`、`/tmp/stair_nav_mission_install`，构建日志位于 `/tmp/stair_nav_mission_logs`。复现命令、配置和状态契约见 [MISSION.md](MISSION.md)。
+
+验证日期：2026-10-28（Asia/Shanghai）。历史 70 项/13 项结果仅对应原版本；本次实际执行如下。
+
+| 验证 | 实际结果 | 原始记录 |
+|---|---|---|
+| 工作区根目录构建 | 两包成功，3 分 30 秒；未覆盖相邻包或原工作区安装 | [接口构建](mission_build_interfaces.log)、[Python 构建](mission_build_python.log) |
+| 纯核心 pytest | 117/117 通过，其中新增任务状态机 47 项 | [JUnit](mission_core_tests.xml) |
+| colcon test / test-result | 117 tests，0 errors，0 failures，0 skipped | [测试输出](mission_colcon_test.log) |
+| ROS 回调与就绪边界 | 26/26 通过；无 ROS 图，真实回调 + 可控 Future | [回调输出](mission_callback_tests.log) |
+| 真实任务 Action 联调 | 8/8 场景通过，原规划/跟踪/模拟链路 | [JSON](mission_ros_results.json)、[节点日志](mission_ros_logs/) |
+| 原 Launch/Trigger 正常链路 | AB、BC、CD 执行且最终 CD/SUCCEEDED | [JSON](mission_legacy_normal_results.json)、[Launch 日志](mission_ros_logs/legacy_normal.log) |
+| 默认 demo 自动启动 | 单调度者、单执行链、AB→BC→CD 成功后定时 SIGINT 退出 | [JSON](mission_demo_launch_results.json)、[Launch 日志](mission_demo_launch.log) |
+| 原接口故障与立即取消 | 失联阻塞/新任务拒绝、单段即时取消，2/2 通过 | [JSON](mission_legacy_fault_results.json) |
+
+任务 Action 八场景：顺序成功（26.171 秒，三个不同执行 ID，每段仅一次；忙碌请求拒绝；晚订阅取得终态）、运行取消（等待 hold/stable 后完成）、派发前早取消（未创建导航段，hold=false 符合无自有运动契约）、未就绪（READY_TIMEOUT，无派发）、定位过期（POSE_STALE，确认清理）、缺少出梯（ARRIVAL_CONFIRM_TIMEOUT，AB 几何候选不推进）、执行器失联（FAULT_BLOCKED/CANCEL_RESPONSE_TIMEOUT，停止与保持未知，新任务和 reset 均拒绝）、仅重启任务节点（IDLE、空任务 ID、不续跑旧段）。
+
+核心和回调测试补齐真实图不便稳定制造的竞态：接受响应前取消、接受超时后的迟到句柄、取消响应拒绝/丢失、已接受取消但终态超时、清理确认过期或错误执行 ID、取消后的迟到成功、旧任务/重复结果、结果注册异常、早取消的 ROS CANCELING 协议时序、时钟回退、配置引用不一致、执行/确认/反馈超时、故障保持与带守卫复位。测试使用受控时钟/事件，无长 sleep。
+
+本机 ROS 联调设置 ROS_LOCALHOST_ONLY=1，使用独立 Domain 和全新模拟进程；Fast DDS 在受限环境打印 UDP 权限诊断，但同机共享内存通信完成了实际 Action/Service/Topic 验证。未验证跨机器 DDS 通信、真实设备、真实地图和任意当前位置到 A 的自动接近。
+
+复现本次构建和测试：
+
+```bash
+cd /home/syf/ros2_ws
+source /opt/ros/humble/setup.bash
+colcon --log-base /tmp/stair_nav_mission_logs build \
+  --base-paths src/stair_nav/stair_nav_interfaces src/stair_nav/stair_nav \
+  --packages-up-to stair_nav --build-base /tmp/stair_nav_mission_build \
+  --install-base /tmp/stair_nav_mission_install --symlink-install
+source /tmp/stair_nav_mission_install/setup.bash
+colcon --log-base /tmp/stair_nav_mission_test_logs test \
+  --base-paths src/stair_nav/stair_nav_interfaces src/stair_nav/stair_nav \
+  --packages-select stair_nav --build-base /tmp/stair_nav_mission_build \
+  --install-base /tmp/stair_nav_mission_install --event-handlers console_direct+
+colcon --log-base /tmp/stair_nav_mission_test_logs test-result \
+  --test-result-base /tmp/stair_nav_mission_build --verbose
+cd /home/syf/ros2_ws/src/stair_nav
+PYTHONPATH=stair_nav python3 -m pytest -q stair_nav/test
+python3 tools/test_ros_callbacks.py
+ROS_LOCALHOST_ONLY=1 python3 tools/mission_smoke.py \
+  --domain-base 171 --output-dir /tmp/stair_nav_mission_ros
+ROS_LOCALHOST_ONLY=1 python3 tools/ros_action_smoke.py \
+  --cases normal --domain-base 201 --output-dir /tmp/stair_nav_mission_legacy
+ROS_LOCALHOST_ONLY=1 python3 tools/ros_action_smoke.py \
+  --cases transport_timeout,immediate_cancel --domain-base 181 \
+  --output-dir /tmp/stair_nav_legacy_mission_smoke
+```
+
+联调中修复了两个回调边界：任务早取消必须等 ROS 目标进入 CANCELING 后才调用 canceled；已接受的段目标即使 get_result_async 注册异常，也必须保留已知接受状态并取消。另确保旧/重复结果不会更新新段的同步时间屏障。
+
+## 就绪守卫修复验证（2026-10-29）
+
+修复两项审查发现：最新运控反馈否定旧释放快照后仍可能派发，以及成功结果切换导航段时复用上一段的就绪条件。
+
+- 派发同时要求新鲜、匹配的释放证据；失去稳定、保持或执行/段标识不匹配时继续等待。初始无执行时，空执行标识且稳定、尚无保持确认的既有启动契约保留。
+- 纯核心 `Readiness` 增加 `target_segment_id`，派发守卫同时核对目标段。结果回调选择下一段后，旧段事实不再授权新段；重新评估新段能力和模式后才可派发。
+- 该字段仅属内部纯 Python 数据模型，任务/段 ROS Action、Message、Service 定义未改变。
+
+新增 6 项核心测试和 3 项回调测试，并加强已有释放检查。确定性回归覆盖：更新的反馈否定旧快照时无 SEND，反馈恢复后仅 SEND 一次；BC 结果与新快照在定时器前到达时，缺少 CD 的 turn_in_place 能力不会派发 CD；补齐后仅派发一次；持续缺少前置条件时由 READY_TIMEOUT 结束。
+
+| 验证 | 结果 | 记录 |
+|---|---|---|
+| 工作区根目录增量构建 | 受影响的 stair_nav 包成功，2 分钟；复用未变化的接口包 | [构建日志](readiness_fix_build.log) |
+| 全部纯核心测试 | 123/123 通过（任务核心 53 项） | [JUnit](readiness_fix_core_tests.xml) |
+| 实际 ROS 回调及就绪测试 | 29/29 通过 | [回调日志](readiness_fix_callback_tests.log) |
+| 原规划/跟踪/模拟端任务 Action 联调 | 8/8 通过；顺序、取消、就绪、过期、缺少出梯、失联阻塞与重启行为正常 | [JSON](readiness_fix_ros_results.json)、[节点日志](readiness_fix_ros_logs/) |
+
+正常任务实际耗时 25.702 秒，AB/BC/CD 三个执行 ID 各出现一次；忙碌拒绝和晚订阅终态检查通过。取消、失联阻塞及重启不续跑行为未受本次守卫变更影响。
+
+复现新增检查（先按前文从工作区根目录构建并 source 相同安装空间）：
+
+```bash
+cd /home/syf/ros2_ws/src/stair_nav
+PYTHONPATH=stair_nav python3 -m pytest -q stair_nav/test
+python3 tools/test_ros_callbacks.py
+ROS_LOCALHOST_ONLY=1 python3 tools/mission_smoke.py \
+  --domain-base 211 --output-dir /tmp/stair_nav_readiness_fix_ros
+```

@@ -9,7 +9,10 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MotionStatus.msg"
   "msg/ChannelEvent.msg"
   "msg/SegmentStatus.msg"
+  "msg/MissionStatus.msg"
+  "srv/GetNavigationState.srv"
   "action/NavigateSegment.action"
+  "action/ExecuteMission.action"
   DEPENDENCIES std_msgs builtin_interfaces
 )
 ament_export_dependencies(rosidl_default_runtime)

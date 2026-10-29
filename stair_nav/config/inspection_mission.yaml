@@ -1,0 +1,24 @@
+# Mission scheduling only. Geometry, segment modes/capabilities and arrival
+# confirmation remain in this existing navigation configuration.
+route_id: inspection_demo
+route_file: demo_route.yaml
+sequence: [AB, BC, CD]
+
+# Seconds; no automatic retries. Per-segment overrides may be placed under
+# per_segment.<segment_id>.timeouts without copying paths or coordinates.
+timeouts:
+  service: 5.0
+  ready: 5.0
+  acceptance: 3.0
+  execution: 55.0
+  confirmation: 8.0
+  feedback: 2.0
+  cancel_response: 3.0
+  cancel_terminal: 5.0
+  cleanup: 5.0
+readiness:
+  pose_max_age: 0.5
+  motion_max_age: 0.5
+  navigation_max_age: 1.0
+  require_start_node: true
+per_segment: {}

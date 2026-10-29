@@ -1,0 +1,85 @@
+[
+  {
+    "case": "normal",
+    "passed": true,
+    "segments": [
+      [
+        "AB",
+        "f59a8560-0e15-480b-9e81-5b6c2f4ae40d"
+      ],
+      [
+        "BC",
+        "3162bc4b-8a2b-4e3c-a49d-f74ac14539b0"
+      ],
+      [
+        "CD",
+        "14273b4e-2db1-4b21-8dea-bbf6cd09cb5e"
+      ]
+    ],
+    "busy_rejected": true,
+    "late_monitor_received": true,
+    "elapsed_seconds": 26.171
+  },
+  {
+    "case": "cancel",
+    "passed": true,
+    "state": "CANCELED",
+    "error_code": "CANCELED",
+    "navigation_stopped": true,
+    "hold_confirmed": true,
+    "elapsed_seconds": 1.227
+  },
+  {
+    "case": "early_cancel",
+    "passed": true,
+    "state": "CANCELED",
+    "error_code": "CANCELED",
+    "navigation_stopped": true,
+    "hold_confirmed": false,
+    "elapsed_seconds": 0.447
+  },
+  {
+    "case": "ready_timeout",
+    "passed": true,
+    "state": "FAILED",
+    "error_code": "READY_TIMEOUT",
+    "navigation_stopped": true,
+    "hold_confirmed": false,
+    "elapsed_seconds": 5.469
+  },
+  {
+    "case": "localization_stale",
+    "passed": true,
+    "state": "FAILED",
+    "error_code": "POSE_STALE",
+    "navigation_stopped": true,
+    "hold_confirmed": true,
+    "elapsed_seconds": 1.868
+  },
+  {
+    "case": "missing_exit",
+    "passed": true,
+    "state": "FAILED",
+    "error_code": "ARRIVAL_CONFIRM_TIMEOUT",
+    "navigation_stopped": true,
+    "hold_confirmed": true,
+    "elapsed_seconds": 13.142
+  },
+  {
+    "case": "transport_timeout",
+    "passed": true,
+    "state": "FAULT_BLOCKED",
+    "error_code": "CANCEL_RESPONSE_TIMEOUT",
+    "navigation_stopped": false,
+    "hold_confirmed": false,
+    "elapsed_seconds": 5.982
+  },
+  {
+    "case": "restart_no_resume",
+    "passed": true,
+    "old_execution": "21e1bc7c-4f7f-4114-a261-e936fa503ef0",
+    "restarted_state": "IDLE",
+    "automatic_resume": false,
+    "elapsed_seconds": 3.683
+  }
+]

@@ -1,0 +1,11 @@
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+[37;1m2026-10-29 14:08:09.932 [31;1m[[37;1mTRANSPORT[31;1m Error] [37mAll whitelist interfaces were filtered out[34;1m -> Function [36mUDPv4Transport[m
+[37;1m2026-10-29 14:08:09.932 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[37;1m2026-10-29 14:08:09.932 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[INFO] [1793254089.997361114] [segment_navigation]: segment Action ready; candidate controls require an explicit adapter
+[INFO] [1793254090.041181934] [segment_navigation]: segment= execution= state=IDLE phase= error= 
+[INFO] [1793254090.505201262] [segment_navigation]: segment=AB execution=c5df96b5-4fc4-4799-99d9-3d8be34f0592 state=PLANNING phase=planning error= 
+[INFO] [1793254090.544766728] [segment_navigation]: segment=AB execution=c5df96b5-4fc4-4799-99d9-3d8be34f0592 state=WAIT_READY phase=waiting_ready error= 

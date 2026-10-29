@@ -1,0 +1,25 @@
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+getifaddrs: Operation not permitted
+[37;1m2026-10-28 20:13:19.615 [31;1m[[37;1mTRANSPORT[31;1m Error] [37mAll whitelist interfaces were filtered out[34;1m -> Function [36mUDPv4Transport[m
+[37;1m2026-10-28 20:13:19.615 [31;1m[[37;1mTRANSPORT_UDP[31;1m Error] [37mError creating socket: Operation not permitted[34;1m -> Function [36minit[m
+[37;1m2026-10-28 20:13:19.615 [31;1m[[37;1mRTPS_PARTICIPANT[31;1m Error] [37mUser transport failed to register.[34;1m -> Function [36mRTPSParticipantImpl[m
+[INFO] [1793189599.678439068] [segment_navigation]: segment Action ready; candidate controls require an explicit adapter
+[INFO] [1793189599.720444165] [segment_navigation]: segment= execution= state=IDLE phase= error= 
+[INFO] [1793189600.282659693] [segment_navigation]: segment=AB execution=21e1bc7c-4f7f-4114-a261-e936fa503ef0 state=PLANNING phase=planning error= 
+[INFO] [1793189600.322928945] [segment_navigation]: segment=AB execution=21e1bc7c-4f7f-4114-a261-e936fa503ef0 state=WAIT_READY phase=waiting_ready error= 
+[INFO] [1793189600.372350569] [segment_navigation]: segment=AB execution=21e1bc7c-4f7f-4114-a261-e936fa503ef0 state=EXECUTING phase=waiting_ready error= 
+Traceback (most recent call last):
+  File "/tmp/stair_nav_mission_install/stair_nav/lib/stair_nav/segment_navigation", line 33, in <module>
+    sys.exit(load_entry_point('stair-nav', 'console_scripts', 'segment_navigation')())
+  File "/tmp/stair_nav_mission_build/stair_nav/stair_nav/segment_node.py", line 351, in main
+    node.destroy_node()
+  File "/tmp/stair_nav_mission_build/stair_nav/stair_nav/segment_node.py", line 334, in destroy_node
+    self.publish_output(self.core.tick(self.now(), self.period))
+  File "/tmp/stair_nav_mission_build/stair_nav/stair_nav/segment_node.py", line 251, in publish_output
+    self.statuses.publish(msg)
+  File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/publisher.py", line 70, in publish
+    self.__publisher.publish(msg)
+rclpy._rclpy_pybind11.RCLError: Failed to publish: publisher's context is invalid, at ./src/rcl/publisher.c:389
+[ros2run]: Process exited with failure 1

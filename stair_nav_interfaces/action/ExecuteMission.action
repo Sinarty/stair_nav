@@ -1,0 +1,14 @@
+# Empty route_id selects the configured route. One active mission, no queue.
+string route_id
+---
+bool success
+string task_id
+string route_id
+string state
+string error_code
+string error_message
+# CANCELED requires both navigation revocation and fresh adapter hold/stability.
+bool navigation_stopped
+bool hold_confirmed
+---
+stair_nav_interfaces/MissionStatus status

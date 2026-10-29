@@ -1,0 +1,10 @@
+# Read-only synchronization snapshot; never starts or resumes motion.
+---
+std_msgs/Header header
+# New UUID for each segment-navigation node process.
+string server_instance
+# Includes goal reservations before execute() starts.
+bool busy
+# True only with no reserved execution and fresh adapter release evidence.
+bool control_released
+stair_nav_interfaces/SegmentStatus status

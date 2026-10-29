@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "default_demo_autostart": true,
+  "segments": [
+    "AB",
+    "BC",
+    "CD"
+  ],
+  "single_task": true,
+  "single_execution_chain": true,
+  "final_state": "SUCCEEDED",
+  "shutdown": "timeout SIGINT at 35s after success"
+}

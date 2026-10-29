@@ -1,0 +1,16 @@
+[
+  {
+    "case": "transport_timeout",
+    "passed": true,
+    "elapsed_seconds": 6.18,
+    "expected_error": "CANCEL_RESPONSE_TIMEOUT",
+    "outcome_unknown_and_new_task_rejected": true
+  },
+  {
+    "case": "immediate_cancel",
+    "passed": true,
+    "elapsed_seconds": 0.489,
+    "expected_error": "CANCELED",
+    "hold_confirmed_at_result": false
+  }
+]
