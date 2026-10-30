@@ -56,7 +56,7 @@ rosbag2_*/
 .env.*
 !.env.example
 !.env.sample
-/.aws/
+/.aws
 
 # 编辑器备份与系统临时文件
 *~
