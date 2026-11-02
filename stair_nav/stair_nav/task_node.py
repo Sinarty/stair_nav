@@ -23,7 +23,7 @@ from stair_nav_interfaces.msg import MissionEvent, MissionStatus, MotionStatus, 
 from stair_nav_interfaces.srv import GetNavigationState
 from stair_nav.core.config import load_route, segment_config
 from stair_nav.core.mission import Effect, MissionCore, Readiness, load_mission
-from stair_nav.ros_utils import durable_qos, live_qos, pose_from_msg, seconds, stamp
+from stair_nav.ros_utils import durable_qos, live_qos, pose_qos, pose_from_msg, seconds, stamp
 
 
 TERMINAL = {'IDLE', 'SUCCEEDED', 'FAILED', 'CANCELED'}
@@ -43,6 +43,8 @@ class TaskManager(Node):
         self.declare_parameter('mission_file', '')
         # A restarted standalone node never resumes an old mission.
         self.declare_parameter('autostart', False)
+        self.declare_parameter('pose_qos_reliability', 'reliable')
+        localization_qos = pose_qos(self.get_parameter('pose_qos_reliability').value)
         route_file = self.get_parameter('route_file').value
         mission_file = self.get_parameter('mission_file').value
         if not route_file or not mission_file:
@@ -57,11 +59,12 @@ class TaskManager(Node):
         self.source_instance = str(uuid.uuid4())
         self.event_sequence = 0
         self.legacy_publisher = self.create_publisher(SegmentStatus, '/task/status', durable_qos())
-        self.client = ActionClient(self, NavigateSegment, '/navigate_segment', callback_group=self.group)
+        self.client = ActionClient(self, NavigateSegment, self.resolve_topic_name('/navigate_segment'),
+                                   callback_group=self.group)
         self.state_client = self.create_client(GetNavigationState, '/navigation/get_state',
                                                callback_group=self.group)
         self.create_subscription(PoseStamped, '/localization/pose', self.on_pose,
-                                 live_qos(5), callback_group=self.group)
+                                 localization_qos, callback_group=self.group)
         self.create_subscription(MotionStatus, '/motion/status', self.on_motion,
                                  live_qos(5), callback_group=self.group)
         self.create_subscription(SegmentStatus, '/navigation/status', self.on_navigation,
@@ -70,7 +73,7 @@ class TaskManager(Node):
         self.create_service(Trigger, '~/cancel', self.cancel_service, callback_group=self.group)
         self.create_service(Trigger, '~/reset', self.reset_service, callback_group=self.group)
         self.server = ActionServer(
-            self, ExecuteMission, '/execute_mission', self.execute_mission,
+            self, ExecuteMission, self.resolve_topic_name('/execute_mission'), self.execute_mission,
             goal_callback=self.on_goal, cancel_callback=self.on_cancel,
             callback_group=self.group, result_timeout=60,
         )

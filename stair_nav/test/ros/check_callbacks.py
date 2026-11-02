@@ -688,6 +688,108 @@ class ReadinessTests(unittest.TestCase):
             self.assertIs(manager.motion, original)
 
 
+class ReleaseSnapshotTests(unittest.TestCase):
+    def test_canceled_task_waits_for_gait_ack_and_post_ack_stability(self):
+        from stair_nav.core.engine import SegmentExecutor
+        from stair_nav.core.m20_motion import M20Config, M20MotionAdapter, MotionObservation
+        from stair_nav_interfaces.srv import GetNavigationState
+
+        # Use the real task cancellation arbiter and real release snapshot.
+        # Native sensors are explicit fixtures; there is no ROS graph or robot.
+        manager = ReadinessTests().manager()
+        manager.running()
+        clock = [10., 100.]
+        manager.now = lambda: clock[0]
+        adapter = M20MotionAdapter(M20Config(
+            dry_run=False, navigation_mode_confirmed=True, planner_stopped=True,
+            normal_location_status=0, supported_modes=('flat', 'stair'),
+            capabilities=('stair_motion', 'stair_yaw_correction', 'turn_in_place')))
+        segment_core = SegmentExecutor(manager.route)
+        self.addCleanup(segment_core.close)
+        segment_core.status = Status(task_id='task-current', execution_id='current',
+                                     segment_id='AB', state='CANCELED', navigation_stopped=True)
+        segment = SimpleNamespace(
+            core=segment_core, route=manager.route, lock=RLock(), reserved=False,
+            server_instance='server', latest_motion=None, now=lambda: clock[0])
+        segment.status_message = lambda status, now: SegmentNavigation.status_message(segment, status, now)
+
+        def sample(gait):
+            adapter.observe_motion(MotionObservation(clock[0], 17, gait, 0., 0., 0.))
+            adapter.observe_imu(clock[0], 0.)
+            adapter.observe_location(clock[0], 0)
+            adapter.observe_estop(clock[1], False)
+            adapter.observe_charge(clock[1], 0, 0)
+
+        def step(gait, hold=False):
+            clock[0] += .1
+            clock[1] += .1
+            sample(gait)
+            if hold:
+                self.assertTrue(adapter.accept(Command(
+                    clock[0], clock[0]+.4, 'task-current', 'current', 'AB',
+                    'waiting_ready', 'flat'), *clock))
+            return adapter.tick(*clock)
+
+        def synchronize(output):
+            native = output.feedback
+            message = MotionStatus()
+            message.header.frame_id, message.header.stamp = 'map', stamp(native.stamp)
+            for field in ('execution_id', 'segment_id', 'mode', 'ready', 'stable',
+                          'hold_confirmed', 'exit_confirmed', 'fault_code', 'fault_message'):
+                setattr(message, field, getattr(native, field))
+            message.capabilities, message.supported_modes = list(native.capabilities), list(native.supported_modes)
+            SegmentNavigation.on_motion(segment, message)
+            manager.motion = message
+            manager.pose.header.stamp = stamp(clock[0])
+            manager.snapshot = SegmentNavigation.get_state(segment, None, GetNavigationState.Response())
+            return manager.readiness(clock[0])
+
+        for _ in range(6):
+            step(4097)
+        self.assertTrue(adapter.enable(True, *clock)[0])
+        for _ in range(6):
+            output = step(4097, hold=True)
+            if output.gait_request is not None:
+                break
+        self.assertEqual(output.gait_request, 12290)
+        self.assertTrue(manager.core.cancel(clock[0]))
+        manager.core.post('RESULT', 'task-current', 'current', status=5, success=False,
+                          navigation_stopped=True, hold_confirmed=False)
+
+        # Old-gait zero velocities can persist longer than the stability dwell;
+        # an unresolved native gait command must still prevent control release.
+        for _ in range(6):
+            output = step(4097, hold=True)
+            self.assertTrue(output.diagnostics['gait_pending'])
+            facts = synchronize(output)
+            self.assertFalse(manager.snapshot.busy)
+            self.assertFalse(manager.snapshot.control_released)
+            self.assertFalse(facts.released)
+            effects = manager.core.tick(clock[0], facts, True)
+            self.assertEqual(manager.core.status.state, 'CANCELING')
+            self.assertFalse(any(effect.kind == 'SEND' for effect in effects))
+
+        output = step(12290, hold=True)
+        ack_at = clock[0]
+        self.assertFalse(output.diagnostics['gait_pending'])
+        facts = synchronize(output)
+        self.assertFalse(manager.snapshot.control_released)
+        manager.core.tick(clock[0], facts, True)
+        self.assertEqual(manager.core.status.state, 'CANCELING')
+        for _ in range(10):
+            output = step(12290, hold=True)
+            facts = synchronize(output)
+            effects = manager.core.tick(clock[0], facts, True)
+            self.assertFalse(any(effect.kind == 'SEND' for effect in effects))
+            if manager.snapshot.control_released:
+                break
+            self.assertEqual(manager.core.status.state, 'CANCELING')
+        self.assertGreaterEqual(clock[0]-ack_at, adapter.config.stable_seconds)
+        self.assertTrue(manager.snapshot.control_released)
+        self.assertTrue(facts.released)
+        self.assertEqual(manager.core.status.state, 'CANCELED')
+
+
 class EarlyCancelTests(unittest.TestCase):
     def test_cancel_between_accept_and_execute_never_emits_valid_command(self):
         calls = []

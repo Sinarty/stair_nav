@@ -17,6 +17,16 @@ def live_qos(depth=1):
                       durability=DurabilityPolicy.VOLATILE)
 
 
+def pose_qos(reliability='reliable', depth=5):
+    """Choose the localization subscriber policy without changing control QoS."""
+    policies = {'reliable': ReliabilityPolicy.RELIABLE,
+                'best_effort': ReliabilityPolicy.BEST_EFFORT}
+    if not isinstance(reliability, str) or reliability not in policies:
+        raise ValueError('pose_qos_reliability must be reliable or best_effort')
+    return QoSProfile(depth=depth, reliability=policies[reliability],
+                      durability=DurabilityPolicy.VOLATILE)
+
+
 def seconds(stamp):
     return stamp.sec + stamp.nanosec * 1e-9
 

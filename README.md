@@ -16,8 +16,12 @@ stair_nav/                              # ament_python 包
       tracking.py                       # 三维路径匹配与 Pure Pursuit
       engine.py                         # 段执行状态机
       mission.py                        # 任务调度、取消与故障恢复
+      localization.py                   # 原厂定位质量门控、三维参考点转换
+      m20_motion.py                     # M20 原厂运控反馈、指令租约与步态握手
     segment_node.py                     # /navigate_segment Action 服务端
     task_node.py                        # /execute_mission 与前端状态
+    m20_localization_node.py             # /ODOM + 定位状态 → 支撑参考位姿
+    m20_motion_node.py                   # 原厂 /NAV_CMD、/GAIT 与真实反馈适配
     ros_utils.py                        # ROS 消息与 QoS 转换
     demo/
       __init__.py、__main__.py
@@ -29,13 +33,15 @@ stair_nav/                              # ament_python 包
       launch/demo.launch.py
       rviz/demo.rviz
   launch/navigation.launch.py            # 正式导航入口，显式提供配置
+  launch/m20_orin.launch.py              # 外部主机 M20 PRO 联调入口，默认只读
+  config/m20_orin.yaml                   # 原厂接口及门控配置，不含现场坐标
   test/
     fixtures/legacy/                     # 旧场景，只用于回归，不安装
     ros/                                # ROS 回调、可视化与场景检查
 stair_nav_interfaces/                    # msg/action/srv 接口包
 ```
 
-`task_manager` 负责任务预检、逐段派发、状态上报和取消清理，不发布速度；`segment_navigation` 负责规划、跟踪、速度输出和段完成判断；demo 的 `sim_executor` 积分实际指令并提供模拟定位与运控反馈。真实部署由机器人适配器承担模拟端的接口职责。
+`task_manager` 负责任务预检、逐段派发、状态上报和取消清理，不发布速度；`segment_navigation` 负责规划、跟踪、速度输出和段完成判断；demo 的 `sim_executor` 积分实际指令并提供模拟定位与运控反馈。真实部署由 M20 定位/运控适配器承担对应接口职责，现场标定和实机验证仍需完成。
 
 ## 构建与启动 demo
 
@@ -170,7 +176,120 @@ ros2 launch stair_nav navigation.launch.py \
 
 默认 20Hz 发布指令，TTL 为 0.2s；接收端仍须独立校验有效期并处理断联。`HOLD` 撤销有效导航速度，请求与当前阶段相符的保持/退出策略；`navigation_stopped=true` 仅表示没有有效导航速度，`hold_confirmed=true` 才是运控反馈的保持确认。零速度不能替代真实停稳、出梯或安全保持判断。定位和反馈使用观测时间，不得重盖时间戳掩盖陈旧数据。
 
-当前无真实机器人 SDK、在线局部避障、完整机体碰撞/动力学验证或点云建图集成。合成地图与模拟确认只用于软件联调，真实路线、净空、模式能力与控制参数需现场核实。
+当前提供 M20 原厂 ROS 接口适配，尚未连接实机验证；没有在线局部避障、完整机体碰撞/动力学验证或点云建图集成。合成地图与模拟确认只用于软件联调，真实路线、净空、模式能力与控制参数需现场核实。
+
+## M20 PRO 接口与外部 Orin 联调
+
+新增 `m20_orin.launch.py`，将现有任务/段状态机与两个原厂 ROS 接口适配节点连接起来。保留机器人原厂运控，不部署或替换 RL 策略，不自动执行站立、趴下、软急停、使用模式切换或停止原厂系统服务。正式任务仍需手动启动；本入口不启动 `sim_executor`，真实定位和运动反馈各只有一个来源。
+
+依据用户提供的[《山猫 M20 开发指南》](https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/mExel2BLV54bA9pbHvlrl10XWgk9rpMq)，实际接入为：
+
+| 原厂接口 | 适配行为 |
+|---|---|
+| `/ODOM`，`nav_msgs/Odometry`，10Hz | 按原始观测时间查询机体到支撑参考点的 TF，转换为 `/localization/pose` |
+| `/LOCATION_STATUS`，`drdds/LocationStatus`，2Hz | 两个适配器分别检查 `data.total_status` 和源时间新鲜度 |
+| `/MOTION_INFO`，`drdds/MotionInfo`，20Hz | 读取真实 `data.motion_state.state`、`data.gait_state.gait` 和 `vel_x/vel_y/vel_yaw` |
+| `/IMU`，`sensor_msgs/Imu` | 用角速度向量模长参与连续稳定判断，不把倾斜机体 Z 轴当作世界 yaw |
+| `/HES_STATUS`、`/CHARGE_STATUS` | 急停、充电冲突或反馈超时阻断导航；无源时间戳的消息仅用接收稳态时间判断超时 |
+| `/NAV_CMD`，`drdds/NavCmd` | 输出 `data.x_vel=vx`、`data.y_vel=0`、`data.yaw_vel=wz` |
+| `/GAIT`，`drdds/Gait` | 仅在静止、运动状态 17 和 HOLD 时请求目标步态，等待实际反馈确认 |
+
+字段与消息名分别核对了[运动控制章节](https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/KGZLxjv9VG3OAkQOS6ALnkKGV6EDybno)、[定位章节](https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/Qnp9zOoBVBZwADmwhPMDzZPlV1DK0g6l)、[话题速查](https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/oP0MALyR8k73gzN3iYagqwbK83bzYmDO)，以及[官方消息源码固定版本](https://github.com/DeepRoboticsLab/deep-robotics-msg/tree/aa646c1782aa982f384b7e46469723f31696f778)。不将其他机型的 `/cmd_vel`、`/STEER` 或策略部署 SDK 接口混用。
+
+### 安装与必须核实的接口差异
+
+Orin 上先构建并 source **与该台机器人固件匹配的 `drdds` 消息包**，再构建本项目。项目当前构建/回归环境为 Ubuntu 22.04、ROS 2 Humble、Python 3.10；其他 Orin 系统组合需另行兼容验证。基础 demo 不依赖该包；两个 M20 节点在启动时动态加载并检查原厂类型。公开 `deep-robotics-msg` 当前版本不包含 `LocationStatus`，应向厂家取得该台机器对应的定义；不能根据网页展开结构自制同名消息冒充兼容。
+
+指南的部分字段与公开消息源码存在差异：源码使用 `header.stamp.sec/nanosec`，指南展开为 `header.timestamp.sec/nsec`。适配器显式支持这两种布局，使用运行环境实际生成的消息类型；原厂 `header.frame_id` 是数字序号，不是 `map` 等 TF 名称。
+
+定位正常码也存在矛盾：定位章节写 `1=正常/0=未初始化`，话题速查写 `0=正常`。`normal_location_status` 默认 `-1`，**未确认时阻断**，需要根据固件和现场健康状态明确选择 `0` 或 `1`，不会同时接受两者。
+
+原厂 `/ODOM` 的参考点是机体 `base_link`，本项目路径参考点是 `ground_projection`。需要提供按观测时刻有效的 `base_link → navigation_ground_reference` 标定/支撑参考 TF，楼梯场景通常需要动态转换。节点完整复合三维位置和旋转，动态 TF 晚到时有界缓存尚未过期的 ODOM，以非阻塞方式重试；发布前重新核对定位质量，保留原始观测时间，过期或失效样本不补发。默认 `tf_retry_period=0.05 s`、`max_pending_odometry=32`，可在配置模板中调整。不通过改 `frame_id`、减固定身高或直接使用 `MotionInfo.height` 伪造地面定位。本次新增的是转换接口，没有实现支撑面估计器。
+
+按[官方 DDS 说明](https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/o14dA3GK8g5y4QGySnyegPppV9ekBD76)，外部主机需使用 Fast DDS、与机器人相同的 Domain ID，并核对固件支持的外部 ROS 版本。实际启动前核对：
+
+```bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export ROS_DOMAIN_ID=0  # 官方示例值；以实际机器人为准
+ros2 interface show drdds/msg/NavCmd
+ros2 interface show drdds/msg/MotionInfo
+ros2 interface show drdds/msg/LocationStatus
+ros2 topic info /ODOM --verbose
+ros2 topic hz /MOTION_INFO
+```
+
+保持 Orin 与机器人时间同步，禁止通过重盖接收时间掩盖旧观测。指南将 `/CHARGE_STATUS` 标为仅 33 网段可见，外部主机须实际能收到它；默认不会在缺充电状态时放行。上述命令只用于检查，不会下发运动。
+
+### 启动与分阶段验证
+
+配置模板为 [m20_orin.yaml](stair_nav/config/m20_orin.yaml)。必须提供现场 `route_file`、`mission_file`，已有地图仍需转换为本项目栅格格式或配置经核实的预设路径。本次不增加点云建图和地图格式转换器，不把合成 demo 坐标当作现场地图。
+
+1. 先在 Orin 构建、运行原有 demo 验证状态机；与机器人隔离测试 Domain。
+2. 安装匹配的 `drdds`、核对正常状态码及参考 TF后，启动默认只读联调：
+
+```bash
+ros2 launch stair_nav m20_orin.launch.py \
+  route_file:=/absolute/site_route.yaml \
+  mission_file:=/absolute/site_mission.yaml \
+  adapter_config:=/absolute/m20_orin.yaml \
+  normal_location_status:=1
+```
+
+这里 `1` 仅为命令格式示例，必须替换为已核实的正常码。默认 `dry_run=true` 且运控适配器未启用，不向 `/NAV_CMD` 或 `/GAIT` 写入任何消息。可检查 `/localization/pose`、`/m20/localization_diagnostic`、`/m20/motion_diagnostic`。机器人静止、未就绪时，任务不会凭空执行到终点；完整模拟成功使用原有 demo 验证。
+
+3. 实机执行前，由现场操作人员确认：机器人已处于**导航使用模式**、原厂冲突 `planner` 已停而 `basic_server` 保持运行、没有自主充电任务、机器人在运动状态 17。使用模式与平地/楼梯步态不同；适配器不会自动切换使用模式或启用关节。修改模板中的能力、支持模式、速度上限，并让路线参数与之相符，再显式启动：
+
+```bash
+ros2 launch stair_nav m20_orin.launch.py \
+  route_file:=/absolute/site_route.yaml \
+  mission_file:=/absolute/site_mission.yaml \
+  adapter_config:=/absolute/m20_orin.yaml \
+  normal_location_status:=1 \
+  dry_run:=false navigation_mode_confirmed:=true planner_stopped:=true
+```
+
+适配器每次启动仍为 disabled。看到真实状态连续稳定后，再在另一终端启用并启动任务：
+
+```bash
+ros2 service call /m20_motion_adapter/enable std_srvs/srv/SetBool '{data: true}'
+ros2 action send_goal /execute_mission stair_nav_interfaces/action/ExecuteMission \
+  '{route_id: your_site_route_id}' --feedback
+```
+
+`route_id` 必须匹配现场任务。先单段平地，再平地多段、取消和输入中断，最后接入楼梯。模板默认只声明 `flat`、空能力列表；按已经核实的能力配置 `turn_in_place`、`stair_motion`、`stair_yaw_correction` 等，不能为通过预检而虚报。默认独立速度上限 `vx=0.3 m/s`、`wz=0.6 rad/s`，超出会拒绝，需同时调整现场路线。
+
+### 保持、出梯、断联和恢复
+
+新执行的首条 HOLD 即登记并回显执行 ID，不等待 TRACK 才响应。默认 20Hz 原厂输出；在 ROS 时间以外另用稳态时钟检查指令剩余有效期，过期、撤销或失效后发零速度请求，等待后续实际运动与 IMU 反馈重新累计稳定窗口。HOLD 不转换为趴下、断电或软急停。机器人进程崩溃时仍需依靠原厂断流减速保护，不能把正常退出时的一条零速度当作停稳确认。
+
+步态切换请求未确认时，不报告保持完成或控制释放，也不接纳新执行；取消不能跳过仍待确认的步态操作。收到目标步态的真实确认后，从确认后的新运动/IMU 观测重新累计稳定时间，再允许保持确认和释放。
+
+平地保持确认由 HOLD、状态 17 和**撤销后的**连续实测稳定推导，这不是原厂专用保持确认位。楼梯中途保持还需要外部监督器在 `/m20/confirmation` 发布 `stair_nav_interfaces/MotionStatus`：使用当前 `execution_id/segment_id`、路线 frame 和真实观测时间，提供经过核实的 `stable/hold_confirmed`。允许安全保持后取消，不强迫取消任务先走出楼梯。
+
+楼梯到平台的切换还需同一执行的新鲜 `exit_confirmed`，之后才能请求平地步态并完成到达。官方没有提供可直接映射的“完全出梯”状态位；本次不实现全机体/足端出梯识别，也不会用机器人中心到点、零速度或固定等待时间生成该确认。监督器必须持续提供有证据的确认，超时或带故障确认不采信。
+
+```bash
+# 撤销适配器：请求零速度，待后续稳定反馈后停止发布
+ros2 service call /m20_motion_adapter/enable std_srvs/srv/SetBool '{data: false}'
+```
+
+disabled/dry-run 会明确报告不可用，因此任务预检和守卫复位不会把它当作已恢复可执行状态。急停、充电冲突、运动状态退出或原生输入异常在观测阶段即锁存故障并撤销旧指令；即使同一控制周期内又收到健康反馈，也不能覆盖已收到的故障或使旧 TRACK 复活。故障后先核实原厂状态、仍存活的执行与实际保持，再重新准备/启用适配器，最后请求 `/task_manager/reset`；未知步态切换超时保持闭锁，不自动重试，可在人工核实后重启适配器。所有 M20 配置参数仅启动时生效，运行时修改会被拒绝；撤销必须使用 enable 服务。
+
+指南对非零速度给出了死区，敏捷平地约 `|vx|≥0.15 m/s`、`|wz|≥0.35 rad/s`，敏捷楼梯约 `|wz|≥0.4 rad/s`；不同固件可能变化。适配器报告 `velocity_deadzone`，**不会把微小速度自动抬高**。需现场检查小速度响应，并重新标定跟踪与到达参数；不能直接沿用 demo 的最小速度和严格入口朝向容差。
+
+### 通用部署接口与新增检查
+
+`navigation.launch.py` 新增定位 QoS 选择、定位/反馈/命令/阻塞话题、两个 Action、状态服务、监控话题及任务 start/cancel/reset 服务的 remap 参数，默认名字均不变。两个状态机新增 `pose_qos_reliability`（`reliable` 或 `best_effort`），适配器输出仍为 Reliable。原生 remap 不改变消息类型；厂商 Odometry 需先经过定位转换。Action 构造前显式解析名称，保证 Humble 下 Action remap 与服务/话题一致。
+
+source 已构建的工作区后运行新增 ROS 检查：
+
+```bash
+python3 stair_nav/test/ros/check_deployment_interfaces.py
+python3 stair_nav/test/ros/check_m20_localization.py
+python3 stair_nav/test/ros/check_m20_motion.py
+```
+
+后两项使用真实 ROS 基础消息/TF类型及离线字段夹具，不连接机器人、不伪造原厂 DDS 类型。全部无 ROS 核心回归仍使用下方 pytest 命令。实机链路需在 Orin 和机器人现场验证，软件测试不能证明实际步态、制动或出梯识别能力。
 
 ## 检查与回归
 

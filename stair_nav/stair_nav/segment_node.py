@@ -20,7 +20,7 @@ from stair_nav.core.config import load_route
 from stair_nav.core.engine import SegmentExecutor
 from stair_nav.core.models import Pose, MotionFeedback
 from stair_nav.ros_utils import (
-    durable_qos, live_qos, seconds, stamp, pose_from_msg, pose_msg, path_msg,
+    durable_qos, live_qos, pose_qos, seconds, stamp, pose_from_msg, pose_msg, path_msg,
 )
 
 
@@ -28,6 +28,8 @@ class SegmentNavigation(Node):
     def __init__(self):
         super().__init__('segment_navigation')
         self.declare_parameter('route_file', '')
+        self.declare_parameter('pose_qos_reliability', 'reliable')
+        localization_qos = pose_qos(self.get_parameter('pose_qos_reliability').value)
         route_file = self.get_parameter('route_file').value
         if not route_file:
             raise ValueError('route_file is required; provide a validated route YAML')
@@ -52,13 +54,13 @@ class SegmentNavigation(Node):
         self.targets = self.create_publisher(PoseStamped, '/navigation/reference_point', durable_qos())
         self.markers = self.create_publisher(MarkerArray, '/navigation/scene', durable_qos())
         self.create_subscription(PoseStamped, '/localization/pose', self.on_pose,
-                                 live_qos(5), callback_group=self.group)
+                                 localization_qos, callback_group=self.group)
         self.create_subscription(MotionStatus, '/motion/status', self.on_motion,
                                  live_qos(5), callback_group=self.group)
         self.create_subscription(ChannelEvent, '/navigation/channel_event', self.on_channel,
                                  live_qos(5), callback_group=self.group)
         self.server = ActionServer(
-            self, NavigateSegment, '/navigate_segment', self.execute,
+            self, NavigateSegment, self.resolve_topic_name('/navigate_segment'), self.execute,
             goal_callback=self.on_goal, cancel_callback=self.on_cancel,
             callback_group=self.group, result_timeout=60,
         )

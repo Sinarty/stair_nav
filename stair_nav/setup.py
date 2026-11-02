@@ -10,6 +10,7 @@ setup(
         ('share/stair_nav/demo/config', glob('stair_nav/demo/config/*.yaml')),
         ('share/stair_nav/demo/config/maps', glob('stair_nav/demo/config/maps/*.yaml')),
         ('share/stair_nav/demo/rviz', glob('stair_nav/demo/rviz/*.rviz')),
+        ('share/stair_nav/config', glob('config/*.yaml')),
         ('share/stair_nav/launch', glob('launch/*.launch.py') + glob('stair_nav/demo/launch/*.launch.py')),
     ],
     install_requires=['setuptools', 'PyYAML'],
@@ -22,5 +23,7 @@ setup(
         'segment_navigation = stair_nav.segment_node:main',
         'task_manager = stair_nav.task_node:main',
         'sim_executor = stair_nav.demo.sim_node:main',
+        'm20_localization = stair_nav.m20_localization_node:main',
+        'm20_motion_adapter = stair_nav.m20_motion_node:main',
     ]},
 )

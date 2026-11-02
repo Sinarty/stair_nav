@@ -1,0 +1,58 @@
+# M20 PRO vendor ROS interfaces, not the policy-deployment SDK.
+# This file contains no site coordinates or fabricated vendor message types.
+m20_localization:
+  ros__parameters:
+    odom_topic: /ODOM
+    location_status_topic: /LOCATION_STATUS
+    location_status_type: drdds/msg/LocationStatus
+    output_pose_topic: /localization/pose
+    navigation_reference_frame: navigation_ground_reference
+    normal_location_status: -1  # Guide chapters disagree: confirm 0 OR 1 on this firmware.
+    odom_qos_reliability: best_effort
+    status_qos_reliability: best_effort
+    odom_timeout: 0.5
+    location_status_timeout: 1.5  # Native status is 2 Hz, not 20 Hz.
+    tf_retry_period: 0.05
+    max_pending_odometry: 32
+
+m20_motion_adapter:
+  ros__parameters:
+    dry_run: true
+    navigation_mode_confirmed: false
+    planner_stopped: false
+    normal_location_status: -1
+    publish_rate: 20.0
+    command_topic: /navigation/command
+    motion_status_topic: /motion/status
+    nav_cmd_topic: /NAV_CMD
+    motion_info_topic: /MOTION_INFO
+    gait_topic: /GAIT
+    location_status_topic: /LOCATION_STATUS
+    location_status_type: drdds/msg/LocationStatus
+    imu_topic: /IMU
+    hard_estop_topic: /HES_STATUS
+    charge_status_topic: /CHARGE_STATUS
+    confirmation_topic: /m20/confirmation
+    flat_gait: 12290  # 0x3002; actual acknowledgement comes from MOTION_INFO.
+    stair_gait: 12291 # 0x3003; only switched at rest in state 17.
+    supported_modes: [flat]
+    capabilities: [] # Add only capabilities verified on this robot/site.
+    max_vx: 0.3
+    max_wz: 0.6
+    motion_timeout: 0.5
+    imu_timeout: 0.5
+    location_timeout: 1.5
+    safety_timeout: 3.0
+    command_max_ttl: 0.5
+    stable_seconds: 0.35
+    linear_stable_threshold: 0.03
+    yaw_stable_threshold: 0.05
+    gyro_stable_threshold: 0.08
+    confirmation_timeout: 1.0
+    gait_timeout: 3.0
+    # Documented nonzero effective minima (firmware >= V1.1.7).
+    # Used for diagnostics, NEVER to boost a small requested velocity.
+    flat_min_vx: 0.15
+    stair_min_vx: 0.15
+    flat_min_wz: 0.35
+    stair_min_wz: 0.4
