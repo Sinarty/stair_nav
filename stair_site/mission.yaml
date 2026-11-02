@@ -1,0 +1,11 @@
+# 现场任务占位：需先完成 route.yaml，再填写一致的执行段序列。
+route_id: site_inspection
+route_file: route.yaml
+sequence: []  # TODO：填写实际要执行的段 ID，例如首测仅包含一条平地段。
+
+# 可选：接近起点的段必须是 platform + grid_astar。
+# 未配置接近段时，需人工将机器人放在首节点允许的位置和朝向范围内。
+# approach_segment: TODO
+
+# 如需调整任务就绪条件及超时，参考：
+# ../stair_nav/stair_nav/demo/config/mission.yaml

@@ -1,0 +1,17 @@
+# 楼梯高度栅格占位：仅在使用 height_grid_astar 时需要。
+# 地图需覆盖楼梯以及经过核实的进梯、出梯区域。
+frame: null
+platform_id: stair_ab  # 与引用本地图的路段 platform_id 保持一致。
+height_z: null
+width: null
+height: null
+resolution: null
+origin: []  # TODO：[x, y]。
+data: []  # TODO：占据矩阵，按 data[y][x] 排列。
+heights: []  # TODO：与 data 同尺寸的有限支撑高度矩阵，单位 m。
+
+# 可选：与 data 同尺寸的阶段矩阵，值为 entry/stair/exit/platform。
+# 不使用阶段矩阵时保留注释；不要将空数组作为完整阶段矩阵启用。
+# phases: []
+
+# 高度地图不能替代支撑参考定位，也不能直接作为真实保持/出梯确认。

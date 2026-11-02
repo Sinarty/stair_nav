@@ -1,0 +1,16 @@
+# 现场路线占位：待填写后才能启动，当前不具备可执行路线。
+# 结构参考 ../stair_nav/stair_nav/demo/config/route.yaml。
+# 请使用实测数据，不要直接复制 demo 坐标、速度、能力或到达容差。
+
+frame: null  # TODO：与现场地图及转换后的定位一致的坐标系。
+reference_point: ground_projection
+sequence: []  # TODO：按执行顺序填写 segments 中的段 ID。
+
+# TODO：节点需包含实测 position: [x, y, z]、yaw 和 arrival。
+nodes: {}
+
+# TODO：每段需配置起终点、kind/backend/mode、模式与能力要求，
+# 以及 tracking/planning/timeouts；也可通过 defaults 提供共同参数。
+# 栅格文件引用示例：grid_file: maps/floor_1.yaml
+# 预设路径引用示例：path_file: paths/ab.yaml
+segments: {}

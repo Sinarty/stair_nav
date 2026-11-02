@@ -1,0 +1,13 @@
+# 预设路径占位：仅在路段通过 path_file 引用本文件时需要。
+frame: null  # TODO：与 route.yaml 和定位一致。
+reference_point: ground_projection
+points: []  # TODO：至少两个实测路径点。
+
+# 每点结构：
+# - position: [x, y, z]
+#   phase: platform  # 按实际路径选择 entry/stair/exit/platform。
+#   mode: flat       # 按实际路径选择 flat/stair。
+#
+# 需核对相邻点距离、终点匹配和入口 join_xy/join_z 范围。
+# 存在非零起点偏移时，先核实连接通道，再在路段 planning 中配置
+# entry_corridor_confirmed: true。预设路径不进行栅格碰撞检查。

@@ -172,6 +172,8 @@ ros2 launch stair_nav demo.launch.py \
 
 实机入口必须提供现场文件，没有可直接用于机器人的默认路线。建议将现场配置独立保存，例如：
 
+仓库已创建 [stair_site/](stair_site) 准备目录，包含 M20 配置模板和路线、任务、地图、路径占位文件。请先按其中说明填入实测信息，再复制到下述部署目录；未填写的占位文件不能直接运行。
+
 ```text
 ~/stair_site/
   route.yaml
