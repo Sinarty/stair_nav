@@ -22,6 +22,7 @@ setup(
     entry_points={'console_scripts': [
         'segment_navigation = stair_nav.segment_node:main',
         'task_manager = stair_nav.task_node:main',
+        'mission_client = stair_nav.mission_client:main',
         'sim_executor = stair_nav.demo.sim_node:main',
         'm20_localization = stair_nav.m20_localization_node:main',
         'm20_motion_adapter = stair_nav.m20_motion_node:main',

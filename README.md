@@ -146,7 +146,47 @@ ros2 action send_goal /execute_mission stair_nav_interfaces/action/ExecuteMissio
 ros2 topic echo /mission/status --qos-durability transient_local
 ```
 
-### 3.3 修改演示场景
+### 3.3 使用中文任务客户端
+
+希望终端显示中文摘要时，可用 `mission_client` 替代上面的 `ros2 action send_goal`。它会实际发送一次相同的任务请求，两种启动方式任选一种。先确保 demo 使用 `autostart:=false`，或实机已经按第 5 节准备就绪。
+
+新增入口首次使用前，在工作空间根目录重新构建并加载环境：
+
+```bash
+cd ~/ros2_ws
+colcon build --packages-up-to stair_nav --symlink-install
+source install/setup.bash
+ros2 run stair_nav mission_client --route-id inspection_demo
+```
+
+实机可省略 `--route-id` 使用服务端已加载任务；填写标识不会切换路线文件。各终端仍需使用相同的 ROS Domain，模拟测试保持本机隔离。
+
+客户端会显示任务受理、任务 ID、当前段、规划/跟踪/到达确认、完成段数、错误和最终结果。示例：
+
+```text
+[任务受理] 请求已接受，仍需通过就绪检查；目标 ID：…
+[任务状态] 等待定位、运控和控制释放就绪（WAITING_READY）
+[当前段] AB，第 1/3 个主路段，执行 ID：…
+[段状态] 路径跟踪（EXECUTING），阶段：楼梯（stair）
+[本段路径进度] AB：42.0%
+[段状态] 几何到达，等待保持及配置要求的确认（ARRIVAL_CONFIRM）
+[任务完成] 巡检成功，已完成 3/3 个主路段
+```
+
+任务 `RUNNING` 显示为“导航段已受理”，只有段 `EXECUTING` 才显示“路径跟踪”。本段路径进度不是整条任务的百分比。英文状态码、错误码和原始说明保留，已有 Action、消息定义和云端接口不变。
+
+状态、路段和错误变化立即显示；同一执行段的进度默认最多每秒输出一次，相同进度不刷屏。可调整：
+
+```bash
+ros2 run stair_nav mission_client --route-id inspection_demo --progress-interval 2
+ros2 run stair_nav mission_client --help
+```
+
+按一次 **Ctrl+C** 会通过本次 Action 目标请求取消，并等待最终结果；即使接受回执尚未到达，也会在收到后取消对应目标，不会重发启动请求。取消受理不等于已经停稳。默认等待 15 秒，可通过 `--cancel-timeout` 调整；等待超时会明确报告结果未确认。再次按 Ctrl+C 仅退出客户端，不能据此认定任务已停止。
+
+`--action` 可指定其他任务 Action 名称，`--server-timeout` 控制等待服务的时间。退出码为：0 表示成功且停止/保持确认齐全，130 表示任务取消或用户中断，1 表示失败或结果未确认，2 表示命令参数错误。末尾的停止/保持信息是任务结果记录，实时运控仍需查看 `/motion/status`。
+
+### 3.4 修改演示场景
 
 演示配置位于 [demo/config](stair_nav/stair_nav/demo/config)：
 
@@ -510,6 +550,7 @@ python3 stair_nav/test/ros/check_visualization.py
 python3 stair_nav/test/ros/check_deployment_interfaces.py
 python3 stair_nav/test/ros/check_m20_localization.py
 python3 stair_nav/test/ros/check_m20_motion.py
+python3 stair_nav/test/ros/check_mission_client.py
 python3 stair_nav/test/ros/ros_action_smoke.py --output-dir /tmp/stair_nav_ros_smoke
 python3 stair_nav/test/ros/mission_smoke.py --output-dir /tmp/stair_nav_mission_smoke
 ```
@@ -525,6 +566,7 @@ M20 检查使用 ROS 基础类型和离线字段夹具，不连接机器人；�
 | [core/planning.py](stair_nav/stair_nav/core/planning.py)、[core/tracking.py](stair_nav/stair_nav/core/tracking.py) | 路径规划与跟踪 |
 | [m20_localization_node.py](stair_nav/stair_nav/m20_localization_node.py) | 原厂定位质量检查、参考点转换 |
 | [m20_motion_node.py](stair_nav/stair_nav/m20_motion_node.py) | M20 原厂 ROS 运控适配 |
+| [mission_client.py](stair_nav/stair_nav/mission_client.py)、[mission_console.py](stair_nav/stair_nav/mission_console.py) | 中文任务 Action 客户端与反馈摘要 |
 | [stair_nav_interfaces](stair_nav_interfaces) | 消息、Action、服务定义 |
 
 ## 10. M20 接口依据
