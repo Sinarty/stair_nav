@@ -2,6 +2,7 @@
 from concurrent.futures import Future
 from dataclasses import replace
 from pathlib import Path
+from threading import Event
 
 import pytest
 
@@ -102,6 +103,68 @@ def test_cancel_during_planning_then_new_task_ignores_old_failure(setup):
     output = engine.tick(1.15, .05)
     assert output.status.state == State.WAIT_READY
     assert output.path is fresh_path and output.status.error_code == ''
+
+
+def test_close_cancels_queued_planning_before_owned_workers_run_it(setup, monkeypatch):
+    route, _, _ = setup
+    engine = SegmentExecutor(route)
+    release_workers = Event()
+    workers_started = [Event(), Event()]
+    planning_started = Event()
+
+    def occupy_worker(started):
+        started.set()
+        release_workers.wait(10.)
+
+    def planner(*args):
+        planning_started.set()
+        return path()
+
+    monkeypatch.setattr('stair_nav.core.engine.plan', planner)
+    try:
+        for started in workers_started:
+            engine._pool.submit(occupy_worker, started)
+        assert all(started.wait(5.) for started in workers_started)
+        planning(engine)
+        queued = engine._future
+        assert not queued.running()
+        engine.close()
+        assert queued.cancelled()
+        assert engine._cancel_event.is_set()
+    finally:
+        release_workers.set()
+        engine.close()
+        engine._pool.shutdown(wait=True)
+    assert not planning_started.is_set()
+
+
+def test_close_signals_running_planner_without_waiting_for_worker_exit(setup, monkeypatch):
+    route, _, _ = setup
+    engine = SegmentExecutor(route)
+    planning_started = Event()
+    cancellation_seen = Event()
+    release_worker = Event()
+
+    def planner(route, segment, pose, cancel_event):
+        planning_started.set()
+        if cancel_event.wait(5.):
+            cancellation_seen.set()
+        release_worker.wait(5.)
+        return path()
+
+    monkeypatch.setattr('stair_nav.core.engine.plan', planner)
+    try:
+        planning(engine)
+        running = engine._future
+        assert planning_started.wait(5.)
+        engine.close()
+        assert cancellation_seen.wait(5.)
+        # The worker is deliberately still blocked: close must not join it.
+        assert not running.done()
+    finally:
+        release_worker.set()
+        engine.close()
+        engine._pool.shutdown(wait=True)
 
 
 def test_busy_rejects_without_replacing_active_task_and_ids_cannot_be_reused(setup):

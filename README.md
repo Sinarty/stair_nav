@@ -31,12 +31,12 @@ demo 和实机不能在同一个 ROS Domain 内同时发布同名定位、运控
 
 ### 2.1 环境与目录
 
-项目当前验证环境为 **Ubuntu 22.04、ROS 2 Humble、Python 3.10**。Orin 的系统、ROS 和机器人固件组合需要另行核对；不能将软件在开发机通过测试等同于已经在 Orin 和机器人上验证。
+当前迁移目标为 **Ubuntu 20.04、ROS 2 Galactic、Python 3.8**，同时保留 Humble 使用的公共接口。代码已针对 Python 3.8 和 Galactic 的 ROS API 做兼容处理；**Galactic 目标机的实际构建、运行验收仍需按第 9 节完成**，不能将此前 Humble 下的软件验证等同于 Galactic 或实机验证。
 
-下面假设 ROS 2 已安装，工作空间为 `~/ros2_ws`，仓库放在：
+下面假设 Galactic 已安装，使用独立工作空间 `~/galactic_ws`，仓库放在：
 
 ```text
-~/ros2_ws/
+~/galactic_ws/
   src/
     stair_nav/                 # 本仓库
       README.md
@@ -44,7 +44,7 @@ demo 和实机不能在同一个 ROS Domain 内同时发布同名定位、运控
       stair_nav_interfaces/    # 消息、Action、服务接口包
 ```
 
-使用其他路径时，替换命令中的工作空间路径。**在工作空间根目录编译，不在仓库内另建 build/install。**
+使用其他路径时，替换命令中的工作空间路径。**在工作空间根目录编译，不在仓库内另建 build/install。** 从 Humble 迁移时，将源码放入新的 Galactic 工作空间，不复制旧 `build/install/log`，也不要在同一终端混合加载两个 ROS 发行版。Orin 还需核对其 Ubuntu/JetPack 版本及厂家对 Galactic 与当前固件组合的支持。
 
 ### 2.2 安装依赖
 
@@ -58,19 +58,21 @@ sudo apt install python3-colcon-common-extensions python3-rosdep
 如果这台主机从未初始化过 rosdep，先执行一次 `sudo rosdep init`。然后安装项目声明的依赖：
 
 ```bash
-source /opt/ros/humble/setup.bash
-rosdep update
-cd ~/ros2_ws
+source /opt/ros/galactic/setup.bash
+rosdep update --include-eol-distros
+cd ~/galactic_ws
 rosdep install --from-paths src/stair_nav/stair_nav_interfaces src/stair_nav/stair_nav \
-  --ignore-src -r -y --rosdistro humble
+  --ignore-src -r -y --rosdistro galactic
 ```
 
 基础 demo 不需要 M20 消息包。**实机还需单独取得并构建与固件匹配的 `drdds` 包，rosdep 不会替你取得厂商消息定义**，详见第 5 节。PyYAML 是运行依赖，pytest 是测试依赖。
 
+Galactic 已结束官方维护，rosdep 更新时需包含历史发行版；ROS 本体及依赖的安装源也需可用。不要通过混入 Humble 安装包解决 Galactic 依赖缺失。
+
 ### 2.3 编译并加载工作空间
 
 ```bash
-cd ~/ros2_ws
+cd ~/galactic_ws
 colcon build --packages-up-to stair_nav --symlink-install
 source install/setup.bash
 ros2 pkg prefix stair_nav
@@ -81,12 +83,21 @@ ros2 pkg prefix stair_nav
 **每个新终端都需要加载环境：**
 
 ```bash
-source /opt/ros/humble/setup.bash
+source /opt/ros/galactic/setup.bash
 # 实机若使用独立厂商工作空间，在此 source 其 install/setup.bash。
-source ~/ros2_ws/install/setup.bash
+source ~/galactic_ws/install/setup.bash
 ```
 
 新增消息、launch 或配置资源后需要重新构建；修改已链接的 Python 文件后通常重启节点即可。旧目录布局升级后若仍加载旧文件，检查 `ros2 pkg prefix stair_nav`，新开终端加载正确安装空间，必要时重新生成该包的构建与安装产物。
+
+### 2.4 本次迁移的兼容范围
+
+- 可空类型注解使用 Python 3.8 支持的 `Optional`；规划线程池关闭不使用 3.9 才加入的 `cancel_futures`，仍保留排队任务取消和运行中规划的协作取消。
+- 中文客户端采用兼容的 ROS 上下文和执行器管理，避免依赖 Galactic 缺少的信号配置接口；第一次 Ctrl+C 仍请求取消本次目标并等待结果，不能直接关闭通信上下文来代替取消。
+- `msg/action/srv` 字段、任务 ID、控制指令有效期及保持/释放确认约定不变。接口包和厂商消息包都需在 Galactic 下重新生成和构建。
+- ROS 的 Action 接收/取消、反馈顺序、TF 晚到、定位失效和故障清理仍需在目标机回归；兼容修改不生成原厂消息、支撑参考定位或楼梯出梯证据。
+
+继续使用 Humble 时，请使用独立的 Humble 工作空间和对应 ROS 环境，不加载本节 Galactic 的安装空间。
 
 ## 3. 使用 demo 验证软件整流程
 
@@ -153,7 +164,7 @@ ros2 topic echo /mission/status --qos-durability transient_local
 新增入口首次使用前，在工作空间根目录重新构建并加载环境：
 
 ```bash
-cd ~/ros2_ws
+cd ~/galactic_ws
 colcon build --packages-up-to stair_nav --symlink-install
 source install/setup.bash
 ros2 run stair_nav mission_client --route-id inspection_demo
@@ -283,7 +294,7 @@ demo 的坐标、严格朝向容差、速度和模拟确认均不是 M20 实机�
 从厂家取得这台机器人对应的 `drdds` 消息包，按厂商说明构建。若其源码放在同一工作空间的 `src` 下，可显式构建：
 
 ```bash
-cd ~/ros2_ws
+cd ~/galactic_ws
 colcon build --packages-up-to drdds stair_nav --symlink-install
 source install/setup.bash
 ros2 interface show drdds/msg/NavCmd
@@ -313,6 +324,8 @@ ros2 interface show drdds/msg/LocationStatus
 按厂家流程加载现场定位地图并完成初始化或重定位，确认原厂定位正常。定位地图与项目路线必须采用一致的现场坐标基准；仅将地图文件放进本项目目录不会启动原厂定位。
 
 按实际机器人设置所有实机终端的通信环境：
+
+Galactic 默认 RMW 为 Cyclone DDS；本项目 M20 原厂接入使用 Fast DDS。请确认 Galactic 的 `rmw_fastrtps_cpp` 已安装，并显式设置下列变量，不依赖默认 RMW：
 
 ```bash
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
@@ -534,10 +547,14 @@ ros2 launch stair_nav navigation.launch.py \
 
 ## 9. 开发检查与代码位置
 
-普通用户可先用 demo 验证；开发或修改接口时，在仓库根目录运行：
+以下命令用于 **Galactic 目标机**上的迁移验收。先新开终端加载正确环境，确认 `ROS_DISTRO` 为 `galactic`、Python 为 3.8，再在仓库根目录运行：
 
 ```bash
-cd ~/ros2_ws/src/stair_nav
+source /opt/ros/galactic/setup.bash
+source ~/galactic_ws/install/setup.bash
+printenv ROS_DISTRO
+python3 --version
+cd ~/galactic_ws/src/stair_nav
 PYTHONPATH=stair_nav python3 -m stair_nav.demo --output /tmp/stair_nav_headless.json
 PYTHONPATH=stair_nav python3 -m pytest -q stair_nav/test
 ```
@@ -556,6 +573,8 @@ python3 stair_nav/test/ros/mission_smoke.py --output-dir /tmp/stair_nav_mission_
 ```
 
 M20 检查使用 ROS 基础类型和离线字段夹具，不连接机器人；场景脚本使用模拟节点和独立 Domain。软件回归不替代现场步态、制动和出梯识别验证。
+
+迁移验收至少包含：完整模拟任务成功、接受应答前/执行中取消、取消超时不误报停稳、定位失效、缺少出梯确认以及执行端重启不恢复旧任务。通过这些软件检查后，再按第 5 节从只读接入、平地单段开始验证实机。
 
 主要代码位置：
 

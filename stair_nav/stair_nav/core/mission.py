@@ -8,6 +8,7 @@ from collections import deque
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
+from typing import Optional
 import math
 import uuid
 
@@ -129,7 +130,7 @@ class Readiness:
     # identifies the previous execution whose control release was observed.
     target_segment_id: str = ''
     # None means fresh localization cannot determine arrival at the main start.
-    at_start: bool | None = None
+    at_start: Optional[bool] = None
 
 
 @dataclass
@@ -163,7 +164,7 @@ class Effect:
     execution_id: str
     segment_id: str
     data: dict = field(default_factory=dict)
-    snapshot: MissionStatus | None = None
+    snapshot: Optional[MissionStatus] = None
 
 
 class MissionCore:

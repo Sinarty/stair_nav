@@ -181,7 +181,7 @@ def test_native_invalid_or_stale_data_never_authorizes_velocity(source):
     elif source == 'imu_nan':
         rig.adapter.observe_imu(rig.now+.01, math.nan)
     else:
-        setattr(rig.adapter, '_' + source.removesuffix('_stale'), None)
+        setattr(rig.adapter, '_' + source[:-len('_stale')], None)
         if source == 'safety_stale':
             rig.adapter._estop = None
     out = rig.tick()

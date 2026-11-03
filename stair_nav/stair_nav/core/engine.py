@@ -287,4 +287,6 @@ class SegmentExecutor:
         if self._future is not None:
             self._future.cancel()
         if self._owns_pool:
-            self._pool.shutdown(wait=False, cancel_futures=True)
+            # The current queued job is canceled above; running planners observe
+            # their execution's cancel event. Python 3.8 has no cancel_futures.
+            self._pool.shutdown(wait=False)

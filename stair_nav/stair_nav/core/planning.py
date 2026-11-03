@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from heapq import heappop, heappush
 from pathlib import Path
+from typing import Optional
 import math
 
 import yaml
@@ -130,8 +131,8 @@ class OccupancyGrid:
     platform_id: str
     frame: str
     blocked: set
-    heights: tuple | None = None
-    phases: tuple | None = None
+    heights: Optional[tuple] = None
+    phases: Optional[tuple] = None
     max_step_height: float = .2
 
     @classmethod

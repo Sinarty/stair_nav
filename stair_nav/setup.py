@@ -14,6 +14,7 @@ setup(
         ('share/stair_nav/launch', glob('launch/*.launch.py') + glob('stair_nav/demo/launch/*.launch.py')),
     ],
     install_requires=['setuptools', 'PyYAML'],
+    python_requires='>=3.8',
     zip_safe=True,
     maintainer='Stair navigation team', maintainer_email='maintainer@example.com',
     description='Segment navigation and a synthetic, hardware-free ROS 2 demo.',

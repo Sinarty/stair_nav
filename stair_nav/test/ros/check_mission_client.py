@@ -4,6 +4,8 @@
 Source ROS and the built stair_nav_interfaces package before running this file.
 No robot nodes, vendor adapters, or physical control topics are started.
 """
+from contextlib import redirect_stdout
+import io
 import os
 from pathlib import Path
 import signal
@@ -213,6 +215,35 @@ class MissionClientChecks(unittest.TestCase):
         self.assertRegex(output, '规划|跟踪')
         self.assertIn('成功', output)
         self.assertNotIn('nanosec:', output)
+
+    def test_private_context_preserves_existing_ros_context_and_sigint_handler(self):
+        from stair_nav.mission_client import main
+
+        server = self.server('success')
+        previous_handler = signal.getsignal(signal.SIGINT)
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = main(['--route-id', 'inspection_demo',
+                         '--action', server.action_name, '--server-timeout', '4'])
+        self.assertEqual(code, 0, output.getvalue())
+        self.assertEqual(server.goal_count, 1)
+        self.assertTrue(rclpy.ok(), 'client shutdown affected the caller ROS context')
+        self.assertEqual(signal.getsignal(signal.SIGINT), previous_handler)
+
+    def test_private_context_cleanup_restores_sigint_after_node_creation_error(self):
+        from unittest.mock import patch
+        from stair_nav.mission_client import main
+
+        previous_handler = signal.getsignal(signal.SIGINT)
+        output = io.StringIO()
+        with patch('stair_nav.mission_client.MissionClient',
+                   side_effect=RuntimeError('client construction failed')):
+            with redirect_stdout(output):
+                code = main(['--server-timeout', '.1'])
+        self.assertEqual(code, 1, output.getvalue())
+        self.assertIn('client construction failed', output.getvalue())
+        self.assertTrue(rclpy.ok(), 'failed client affected the caller ROS context')
+        self.assertEqual(signal.getsignal(signal.SIGINT), previous_handler)
 
     def test_success_without_hold_confirmation_is_not_reported_as_success(self):
         server = self.server('success_unconfirmed')

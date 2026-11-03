@@ -5,10 +5,10 @@ import signal
 import sys
 import time
 
-import rclpy
 from rclpy.action import ActionClient
+from rclpy.context import Context
+from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
-from rclpy.signals import SignalHandlerOptions
 from rclpy.utilities import remove_ros_args
 
 from stair_nav_interfaces.action import ExecuteMission
@@ -42,9 +42,11 @@ def argument_parser():
 class MissionClient(Node):
     """Own exactly one goal; never retry a send or cancel through a service."""
 
-    def __init__(self, options):
-        super().__init__('mission_client')
+    def __init__(self, options, context=None):
+        super().__init__('mission_client', context=context)
         self.options = options
+        self._mission_executor = SingleThreadedExecutor(context=self.context)
+        self._mission_executor.add_node(self)
         self.action = ActionClient(
             self, ExecuteMission, self.resolve_topic_name(options.action))
         self.reporter = MissionReporter(options.progress_interval)
@@ -86,18 +88,18 @@ class MissionClient(Node):
     def run(self):
         self.say(f'[等待服务] {self.options.action}')
         deadline = time.monotonic() + self.options.server_timeout
-        while rclpy.ok() and not self.action.server_is_ready():
+        while self.context.ok() and not self.action.server_is_ready():
             if self.interrupts:
                 self.say('[启动取消] 尚未发送任务请求。')
                 return 130
             if time.monotonic() >= deadline:
                 self.say('[启动失败] 等待 Action 服务超时，未发送任务。')
                 return 1
-            rclpy.spin_once(self, timeout_sec=.1)
+            self._mission_executor.spin_once(timeout_sec=.1)
         if self.interrupts:
             self.say('[启动取消] 尚未发送任务请求。')
             return 130
-        if not rclpy.ok():
+        if not self.context.ok():
             self.say('[启动失败] ROS 通信已关闭，未发送任务。')
             return 1
 
@@ -108,8 +110,8 @@ class MissionClient(Node):
             ExecuteMission.Goal(route_id=self.options.route_id),
             feedback_callback=self.on_feedback)
 
-        while rclpy.ok():
-            rclpy.spin_once(self, timeout_sec=.1)
+        while self.context.ok():
+            self._mission_executor.spin_once(timeout_sec=.1)
             if self.goal_handle is None and self.goal_future.done():
                 handle = self.goal_future.result()
                 if not handle.accepted:
@@ -173,10 +175,14 @@ def main(args=None):
     argv = sys.argv if args is None else ['mission_client', *args]
     options = argument_parser().parse_args(remove_ros_args(args=argv)[1:])
     node = None
+    context = Context()
     previous_sigint = signal.getsignal(signal.SIGINT)
     try:
-        rclpy.init(args=argv, signal_handler_options=SignalHandlerOptions.NO)
-        node = MissionClient(options)
+        # Context.init is common to Galactic and Humble and does not install
+        # Humble's process-wide shutdown-on-SIGINT handler. Keep cancellation
+        # on this private context until its result is known.
+        context.init(args=argv)
+        node = MissionClient(options, context=context)
         signal.signal(signal.SIGINT, node.on_interrupt)
         return node.run()
     except KeyboardInterrupt:
@@ -190,11 +196,17 @@ def main(args=None):
         print(f'[客户端错误] {type(exc).__name__}: {exc}', flush=True)
         return 1
     finally:
-        if node is not None:
-            node.action.destroy()
-            node.destroy_node()
-        rclpy.try_shutdown()
-        signal.signal(signal.SIGINT, previous_sigint)
+        try:
+            if node is not None:
+                node._mission_executor.shutdown()
+                node.action.destroy()
+                node.destroy_node()
+        finally:
+            try:
+                if context.ok():
+                    context.shutdown()
+            finally:
+                signal.signal(signal.SIGINT, previous_sigint)
 
 
 if __name__ == '__main__':
