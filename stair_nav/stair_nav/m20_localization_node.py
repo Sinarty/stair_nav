@@ -63,7 +63,10 @@ class M20Localization(Node):
             future_tolerance=values['future_tolerance'])
         try:
             status_type = get_message(values['location_status_type'])
-        except (ImportError, AttributeError, ModuleNotFoundError, ValueError) as exc:
+            sample = status_type()
+            timestamp_seconds(sample.meta)
+            sample.data.total_status
+        except (ImportError, AttributeError, ModuleNotFoundError, ValueError, TypeError) as exc:
             raise RuntimeError(
                 'Install/source the robot firmware-matching drdds messages including '
                 'LocationStatus; a similarly named SDK message package is insufficient') from exc
@@ -96,7 +99,7 @@ class M20Localization(Node):
 
     def on_status(self, message):
         try:
-            observed = timestamp_seconds(message.header)
+            observed = timestamp_seconds(message.meta)
             self.gate.update_status(message.data.total_status, observed, self.now())
             if not self.gate.ready(self.now()):
                 self.pending_odometry.clear()

@@ -6,6 +6,7 @@ never registered as ROS types or used on the wire.
 """
 from types import SimpleNamespace as S
 import unittest
+from unittest.mock import patch
 
 from stair_nav.core.models import MotionFeedback
 from stair_nav.core.m20_motion import M20Output
@@ -49,6 +50,39 @@ class NativeInterfaceTests(unittest.TestCase):
         del message.data.motion_state
         with self.assertRaises(AttributeError):
             motion_observation(message)
+
+    def test_location_status_reads_meta_and_preserves_source_time(self):
+        received = []
+        node = S(adapter=S(observe_location=lambda *value: received.append(value)))
+        message = S(meta=S(stamp=S(sec=10, nanosec=125000000)),
+                    data=S(total_status=1))
+        M20MotionNode.on_location(node, message)
+        self.assertEqual(received, [(10.125, 1)])
+
+    def test_wrong_location_status_schema_is_rejected(self):
+        errors, received = [], []
+        node = S(adapter=S(observe_location=lambda *value: received.append(value)),
+                 invalid_input=lambda source, exc: errors.append(source))
+        message = S(header=S(stamp=S(sec=10, nanosec=0)), data=S(total_status=1))
+        M20MotionNode.on_location(node, message)
+        self.assertEqual(errors, ['LOCATION_STATUS'])
+        self.assertEqual(received, [])
+
+    def test_estop_reads_value_with_receipt_time(self):
+        received = []
+        node = S(adapter=S(observe_estop=lambda *value: received.append(value)))
+        with patch('stair_nav.m20_motion_node.time.monotonic', return_value=101.25):
+            for value in (0, 1, -1):
+                M20MotionNode.on_estop(node, S(value=value))
+        self.assertEqual(received, [(101.25, False), (101.25, True), (101.25, True)])
+
+    def test_wrong_estop_schema_is_rejected(self):
+        errors, received = [], []
+        node = S(adapter=S(observe_estop=lambda *value: received.append(value)),
+                 invalid_input=lambda source, exc: errors.append(source))
+        M20MotionNode.on_estop(node, S(data=0))
+        self.assertEqual(errors, ['HES_STATUS'])
+        self.assertEqual(received, [])
 
     def test_wrapper_dry_run_cannot_write_even_if_an_output_requests_motion(self):
         node = S(adapter=S(config=S(dry_run=True)), now=lambda: 10., frame='map',

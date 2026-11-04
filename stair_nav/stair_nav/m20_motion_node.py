@@ -22,7 +22,7 @@ from stair_nav.core.config import load_route
 from stair_nav.core.localization import timestamp_seconds
 from stair_nav.core.m20_motion import M20Config, M20MotionAdapter, MotionObservation
 from stair_nav.core.models import Command, MotionFeedback
-from stair_nav.ros_utils import live_qos, seconds, stamp
+from stair_nav.ros_utils import durable_qos, live_qos, seconds, stamp
 from stair_nav_interfaces.msg import ControlCommand, MotionStatus
 
 
@@ -97,7 +97,11 @@ class M20MotionNode(Node):
             native_header(self.types['gait'](), 0, 0.)
             self.types['nav']().data.x_vel
             self.types['gait']().data.gait
+            timestamp_seconds(self.types['location']().meta)
             self.types['location']().data.total_status
+            self.types['estop']().value
+            self.types['charge']().state
+            self.types['charge']().error_code
         except (ImportError, ModuleNotFoundError, AttributeError, ValueError, TypeError) as exc:
             raise RuntimeError(
                 'Install/source the firmware-matched drdds package, including LocationStatus. '
@@ -114,7 +118,9 @@ class M20MotionNode(Node):
         self.create_subscription(self.types['motion'], topics['motion_info_topic'], self.on_motion, sensor_qos)
         self.create_subscription(self.types['location'], topics['location_status_topic'], self.on_location, sensor_qos)
         self.create_subscription(Imu, topics['imu_topic'], self.on_imu, sensor_qos)
-        self.create_subscription(self.types['estop'], topics['hard_estop_topic'], self.on_estop, sensor_qos)
+        # GOS retains the last hard-estop state for late subscribers.
+        # Receipt still expires under safety_timeout; retained data is not a heartbeat.
+        self.create_subscription(self.types['estop'], topics['hard_estop_topic'], self.on_estop, durable_qos(5))
         self.create_subscription(self.types['charge'], topics['charge_status_topic'], self.on_charge, sensor_qos)
         self.create_subscription(MotionStatus, topics['confirmation_topic'], self.on_confirmation, live_qos(5))
         self.create_service(SetBool, '~/enable', self.enable)
@@ -150,7 +156,7 @@ class M20MotionNode(Node):
 
     def on_location(self, message):
         try:
-            self.adapter.observe_location(timestamp_seconds(message.header), int(message.data.total_status))
+            self.adapter.observe_location(timestamp_seconds(message.meta), int(message.data.total_status))
         except (ValueError, TypeError, AttributeError) as exc:
             self.invalid_input('LOCATION_STATUS', exc)
 
@@ -163,7 +169,10 @@ class M20MotionNode(Node):
             self.invalid_input('IMU', exc)
 
     def on_estop(self, message):
-        self.adapter.observe_estop(time.monotonic(), int(message.data) != 0)
+        try:
+            self.adapter.observe_estop(time.monotonic(), int(message.value) != 0)
+        except (ValueError, TypeError, AttributeError) as exc:
+            self.invalid_input('HES_STATUS', exc)
 
     def on_charge(self, message):
         self.adapter.observe_charge(time.monotonic(), int(message.state), int(message.error_code))

@@ -1,12 +1,28 @@
 # 独立 APPROACH_A 最小测试：当前有效定位 → A，到达并保持后结束。
-route_id: site_approach_a
-route_file: route.yaml
-sequence: [APPROACH_A]
+route_id: site_approach_a  # 任务标识字符串，与 mission_client --route-id 一致。
+route_file: route.yaml  # 相对本 mission.yaml 的路线路径。
+sequence: [APPROACH_A]  # 段 ID 列表，本次保留唯一接近段。
 
 readiness:
   # 接近测试从实时定位起步；A 是目标，不要求任务开始时已处于 A。
   # 定位、运控、控制释放以及规划器对起点/高度/碰撞的检查继续生效。
-  require_start_node: false
+  require_start_node: false  # 布尔值；本次保留 false，从当前有效定位起步。
+  pose_max_age: 0.5  # 参考：定位观测允许的最大年龄，s。
+  motion_max_age: 0.5  # 参考：运动反馈允许的最大年龄，s。
+  navigation_max_age: 0.5  # 参考：导航同步快照允许的最大年龄，s。
+
+# 任务层超时参考值，单位均为 s，联调后可按实际耗时调整。
+# execution 应覆盖从段目标受理起的规划、等待就绪及段执行耗时。
+timeouts:
+  service: 5.0          # 等待导航服务可用。
+  ready: 10.0           # 等待任务就绪和控制释放。
+  acceptance: 3.0       # 等待段目标受理回执。
+  execution: 60.0       # 单段从受理起的执行时限。
+  confirmation: 10.0    # 任务层到达确认时限，留出比段 arrival=8 s 更大的余量。
+  feedback: 5.0         # 允许多长时间没有新的段反馈。
+  cancel_response: 2.0  # 等待取消受理。
+  cancel_terminal: 5.0  # 等待取消后的段终态。
+  cleanup: 5.0          # 等待失败/取消后的停止和释放确认。
 
 # 本次把 APPROACH_A 作为唯一执行段，不同时设置同名 approach_segment。
-# 现场坐标、到达和运动参数仍在 route.yaml 中保留 null，待实测后填写。
+# route.yaml 的现场坐标、最低有效线速度和障碍膨胀仍保留 null，待实测后填写。

@@ -61,7 +61,7 @@ def support_transform(stamp):
 
 def status(code, second, nanosecond=0):
     return SimpleNamespace(
-        header=SimpleNamespace(stamp=Time(sec=second, nanosec=nanosecond)),
+        meta=SimpleNamespace(stamp=Time(sec=second, nanosec=nanosecond)),
         data=SimpleNamespace(total_status=code))
 
 
