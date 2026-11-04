@@ -6,11 +6,18 @@ frame: null  # TODO：与现场地图及转换后的定位一致的坐标系。
 reference_point: ground_projection
 sequence: []  # TODO：按执行顺序填写 segments 中的段 ID。
 
+# 已接入 ~/map_2d 的二维栅格；这里只建立地图引用，不预设路段或运动参数。
+# floor_1 是内部地图标识，实际楼层、frame 和支撑高度仍需现场确认。
+# 后续使用其他平台或楼梯地图的路段需显式覆盖这两个字段。
+defaults:
+  platform_id: floor_1
+  grid_file: maps/floor_1.yaml
+
 # TODO：节点需包含实测 position: [x, y, z]、yaw 和 arrival。
 nodes: {}
 
 # TODO：每段需配置起终点、kind/backend/mode、模式与能力要求，
 # 以及 tracking/planning/timeouts；也可通过 defaults 提供共同参数。
-# 栅格文件引用示例：grid_file: maps/floor_1.yaml
+# 默认栅格文件已在 defaults.grid_file 中引用。
 # 预设路径引用示例：path_file: paths/ab.yaml
 segments: {}
