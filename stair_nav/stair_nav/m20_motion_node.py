@@ -87,8 +87,9 @@ class M20MotionNode(Node):
         self.declare_parameter('location_status_type', 'drdds/msg/LocationStatus')
         names = dict(nav='drdds/msg/NavCmd', gait='drdds/msg/Gait',
                      motion='drdds/msg/MotionInfo', estop='drdds/msg/StdMsgInt32',
-                     charge='drdds/msg/StdStatus',
-                     location=self.get_parameter('location_status_type').value)
+                     charge='drdds/msg/StdStatus')
+        if self.adapter.config.require_location_status:
+            names['location'] = self.get_parameter('location_status_type').value
         try:
             self.types = {key: get_message(name) for key, name in names.items()}
             # Fail before creating command publishers on a mismatched interface package.
@@ -97,8 +98,9 @@ class M20MotionNode(Node):
             native_header(self.types['gait'](), 0, 0.)
             self.types['nav']().data.x_vel
             self.types['gait']().data.gait
-            timestamp_seconds(self.types['location']().meta)
-            self.types['location']().data.total_status
+            if self.adapter.config.require_location_status:
+                timestamp_seconds(self.types['location']().meta)
+                self.types['location']().data.total_status
             self.types['estop']().value
             self.types['charge']().state
             self.types['charge']().error_code
@@ -116,7 +118,8 @@ class M20MotionNode(Node):
         self.diagnostic = self.create_publisher(String, topics['diagnostic_topic'], live_qos(5))
         self.create_subscription(ControlCommand, topics['command_topic'], self.on_command, live_qos())
         self.create_subscription(self.types['motion'], topics['motion_info_topic'], self.on_motion, sensor_qos)
-        self.create_subscription(self.types['location'], topics['location_status_topic'], self.on_location, sensor_qos)
+        if self.adapter.config.require_location_status:
+            self.create_subscription(self.types['location'], topics['location_status_topic'], self.on_location, sensor_qos)
         self.create_subscription(Imu, topics['imu_topic'], self.on_imu, sensor_qos)
         # GOS retains the last hard-estop state for late subscribers.
         # Receipt still expires under safety_timeout; retained data is not a heartbeat.
@@ -155,6 +158,8 @@ class M20MotionNode(Node):
             self.invalid_input('MOTION_INFO', exc)
 
     def on_location(self, message):
+        if not self.adapter.config.require_location_status:
+            return
         try:
             self.adapter.observe_location(timestamp_seconds(message.meta), int(message.data.total_status))
         except (ValueError, TypeError, AttributeError) as exc:

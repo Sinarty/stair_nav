@@ -1,10 +1,10 @@
-"""M20 /ODOM + /LOCATION_STATUS → the calibrated navigation support pose."""
+"""Configured odometry to a support pose, with an optional vendor status gate."""
 from copy import deepcopy
 from collections import deque
 import math
 
 import rclpy
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TransformStamped
 from nav_msgs.msg import Odometry
 from rclpy.duration import Duration
 from rclpy.node import Node
@@ -12,10 +12,11 @@ from rclpy.time import Time
 from rcl_interfaces.msg import SetParametersResult
 from rosidl_runtime_py.utilities import get_message
 from std_msgs.msg import String
-from tf2_ros import Buffer, TransformException, TransformListener
+from tf2_ros import Buffer, TransformBroadcaster, TransformException, TransformListener
 
 from stair_nav.core.localization import (
-    LocalizationGate, compose_reference_pose, normalized_quaternion, timestamp_seconds,
+    LocalizationGate, compose_reference_pose, flat_ground_projection_transform,
+    normalized_quaternion, timestamp_seconds,
 )
 from stair_nav.ros_utils import live_qos, pose_qos, seconds
 
@@ -30,8 +31,11 @@ class M20Localization(Node):
             'output_pose_topic': '/localization/pose',
             'diagnostic_topic': '/m20/localization_diagnostic',
             'normal_location_status': -1,
+            'require_location_status': True,
             'route_frame': 'map',
             'navigation_reference_frame': 'navigation_ground_reference',
+            'test_flat_ground_projection': False,
+            'test_ground_z': 0.0,
             'odom_qos_reliability': 'best_effort',
             'status_qos_reliability': 'best_effort',
             'location_status_timeout': 1.5,
@@ -56,28 +60,41 @@ class M20Localization(Node):
             raise ValueError('route_frame and navigation_reference_frame must be nonempty')
         if self.reference_frame == 'base_link':
             raise ValueError('base_link is a body pose; configure a calibrated support reference TF')
+        test_projection = values['test_flat_ground_projection']
+        self.test_ground_z = values['test_ground_z']
+        if type(test_projection) is not bool:
+            raise ValueError('test_flat_ground_projection must be boolean')
+        if (isinstance(self.test_ground_z, bool) or
+                not isinstance(self.test_ground_z, (int, float)) or
+                not math.isfinite(self.test_ground_z)):
+            raise ValueError('test_ground_z must be finite')
         self.gate = LocalizationGate(
             normal_status=values['normal_location_status'],
+            require_status=values['require_location_status'],
             pose_max_age=values['odom_timeout'],
             status_max_age=values['location_status_timeout'],
             future_tolerance=values['future_tolerance'])
-        try:
-            status_type = get_message(values['location_status_type'])
-            sample = status_type()
-            timestamp_seconds(sample.meta)
-            sample.data.total_status
-        except (ImportError, AttributeError, ModuleNotFoundError, ValueError, TypeError) as exc:
-            raise RuntimeError(
-                'Install/source the robot firmware-matching drdds messages including '
-                'LocationStatus; a similarly named SDK message package is insufficient') from exc
+        status_type = None
+        if self.gate.require_status:
+            try:
+                status_type = get_message(values['location_status_type'])
+                sample = status_type()
+                timestamp_seconds(sample.meta)
+                sample.data.total_status
+            except (ImportError, AttributeError, ModuleNotFoundError, ValueError, TypeError) as exc:
+                raise RuntimeError(
+                    'Install/source the robot firmware-matching drdds messages including '
+                    'LocationStatus; a similarly named SDK message package is insufficient') from exc
         self.buffer = Buffer(cache_time=Duration(seconds=5.))
-        self.listener = TransformListener(self.buffer, self)
+        self.listener = None if test_projection else TransformListener(self.buffer, self)
+        self.test_reference_broadcaster = TransformBroadcaster(self) if test_projection else None
         self.publisher = self.create_publisher(PoseStamped, values['output_pose_topic'], live_qos(5))
         self.diagnostics = self.create_publisher(String, values['diagnostic_topic'], live_qos())
         self.create_subscription(Odometry, values['odom_topic'], self.on_odom,
                                  pose_qos(values['odom_qos_reliability']))
-        self.create_subscription(status_type, values['location_status_topic'], self.on_status,
-                                 pose_qos(values['status_qos_reliability']))
+        if status_type is not None:
+            self.create_subscription(status_type, values['location_status_topic'], self.on_status,
+                                     pose_qos(values['status_qos_reliability']))
         self.last_diagnostic = None
         self.last_odom_stamp = None
         self.last_received_stamp = None
@@ -87,7 +104,12 @@ class M20Localization(Node):
         self.create_timer(retry_period, self.retry_pending)
         self.create_timer(.2, self.diagnose)
         self.add_on_set_parameters_callback(self.startup_parameters_only)
-        self.get_logger().info('M20 localization requires healthy status and timestamped body→support TF')
+        reference_source = (f'test flat-ground projection, ground_z={self.test_ground_z}'
+                            if test_projection else 'external timestamped body→support TF')
+        self.get_logger().info(
+            f'Odometry input: {values["odom_topic"]}; '
+            f'require_location_status={self.gate.require_status}; '
+            f'reference source: {reference_source}')
 
     def now(self):
         return self.get_clock().now().nanoseconds * 1e-9
@@ -98,6 +120,8 @@ class M20Localization(Node):
                                    reason='Localization adapter parameters are startup-only; restart with new configuration')
 
     def on_status(self, message):
+        if not self.gate.require_status:
+            return
         try:
             observed = timestamp_seconds(message.meta)
             self.gate.update_status(message.data.total_status, observed, self.now())
@@ -136,11 +160,30 @@ class M20Localization(Node):
                 # them with each latest ODOM can indefinitely chase the TF tail.
                 self.gate.reason = 'pending ODOM queue is full; newest sample dropped'
                 return
+            if self.test_reference_broadcaster is not None:
+                self.publish_test_ground_reference(message)
             self.pending_odometry.append(deepcopy(message))
             self.retry_pending()
         except (AttributeError, TypeError, ValueError, OverflowError) as exc:
             self.pending_odometry.clear()
             self.gate.reason = f'ODOM conversion blocked: {exc}'
+
+    def publish_test_ground_reference(self, message):
+        # 测试设定：以当前机身观测在固定地面平面上的竖直投影生成 TF。
+        # 保留原始观测时间，不能用 TF 发布时间刷新旧定位数据。
+        p, q = message.pose.pose.position, message.pose.pose.orientation
+        translation, rotation = flat_ground_projection_transform(
+            (p.x, p.y, p.z), (q.x, q.y, q.z, q.w), self.test_ground_z)
+        transform = TransformStamped()
+        transform.header.frame_id = message.child_frame_id
+        transform.header.stamp = deepcopy(message.header.stamp)
+        transform.child_frame_id = self.reference_frame
+        t, r = transform.transform.translation, transform.transform.rotation
+        t.x, t.y, t.z = translation
+        r.x, r.y, r.z, r.w = rotation
+        # 同步写入本节点 Buffer，避免等待自身 /tf 消息回传。
+        self.buffer.set_transform(transform, 'm20_test_flat_ground_projection')
+        self.test_reference_broadcaster.sendTransform(transform)
 
     def retry_pending(self):
         if not self.gate.ready(self.now()):

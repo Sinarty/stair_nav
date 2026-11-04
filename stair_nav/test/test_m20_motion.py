@@ -90,6 +90,32 @@ def test_enable_requires_verified_usage_and_location_code(options, reason):
     assert Rig(**options).enable() == (False, reason)
 
 
+def test_disabled_location_gate_needs_no_status_and_ignores_native_faults():
+    rig = Rig(require_location_status=False, normal_location_status=-1)
+    assert rig.adapter._location is None
+    assert rig.enable()[0]
+    rig.adapter.observe_location(rig.now, 5)
+    rig.adapter.observe_location(math.nan, None)
+    assert rig.adapter._location is None
+    assert rig.adapter.enabled
+    assert rig.tick().feedback.ready
+
+
+@pytest.mark.parametrize('readings,code', [
+    ({'estop': True}, 'ESTOP_ACTIVE'),
+    ({'charge': 1}, 'CHARGING_OR_ERROR'),
+    ({'state': 4}, 'MOTION_STATE'),
+    ({'gyro': math.nan}, 'IMU_STALE'),
+])
+def test_disabling_location_status_keeps_other_native_fault_guards(readings, code):
+    rig = Rig(require_location_status=False, normal_location_status=-1)
+    assert rig.enable()[0]
+    output = rig.step(**readings)
+    assert not rig.adapter.enabled
+    assert output.feedback.fault_code == code
+    assert output.vx == output.wz == 0.
+
+
 @pytest.mark.parametrize('readings,reason', [
     ({'estop': True}, 'ESTOP_ACTIVE'), ({'charge': 1}, 'CHARGING_OR_ERROR'),
     ({'error': 5}, 'CHARGING_OR_ERROR'), ({'state': 3}, 'MOTION_STATE'),
@@ -623,7 +649,8 @@ def test_unenabled_startup_can_recover_from_unsafe_native_data(source):
     assert rig.adapter.enable(True, rig.now, rig.steady)[0]
 
 
-@pytest.mark.parametrize('values', [{'normal_location_status': 2}, {'motion_timeout': 0.},
+@pytest.mark.parametrize('values', [{'normal_location_status': 2}, {'require_location_status': 'false'},
+                                  {'motion_timeout': 0.},
                                    {'max_vx': math.nan}, {'flat_gait': 12291}, {'dry_run': 'false'}])
 def test_invalid_configuration_is_rejected(values):
     with pytest.raises(ValueError):

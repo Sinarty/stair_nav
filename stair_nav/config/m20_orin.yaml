@@ -7,7 +7,10 @@ m20_localization:
     location_status_type: drdds/msg/LocationStatus
     output_pose_topic: /localization/pose
     navigation_reference_frame: navigation_ground_reference
+    test_flat_ground_projection: false  # Test-only vertical projection onto a fixed map-Z plane.
+    test_ground_z: 0.0  # Used only when test_flat_ground_projection=true.
     normal_location_status: -1  # Guide chapters disagree: confirm 0 OR 1 on this firmware.
+    require_location_status: true  # Set false on both nodes for independent corrected localization.
     odom_qos_reliability: best_effort
     status_qos_reliability: best_effort
     odom_timeout: 0.5
@@ -21,6 +24,7 @@ m20_motion_adapter:
     navigation_mode_confirmed: false
     planner_stopped: false
     normal_location_status: -1
+    require_location_status: true
     publish_rate: 20.0
     command_topic: /navigation/command
     motion_status_topic: /motion/status

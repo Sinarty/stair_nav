@@ -1,8 +1,8 @@
 """ROS-independent validation and full 3-D composition for M20 localization.
 
-The vendor's ODOM is a body pose. A separate calibrated, possibly dynamic
-body-to-navigation-reference transform supplies the support reference; this
-module never guesses it from the reported body height.
+Odometry describes a body pose. Normal operation uses a calibrated, possibly
+dynamic body-to-navigation-reference transform. An explicit flat-ground test
+helper instead projects the body onto a configured map-Z plane.
 """
 import math
 
@@ -58,10 +58,32 @@ def compose_reference_pose(position, orientation, translation, rotation):
             normalized_quaternion(_multiply(q, r)))
 
 
+def flat_ground_projection_transform(position, orientation, ground_z):
+    """Return body→reference TF for the explicitly configured flat-ground test."""
+    if (len(position) != 3 or isinstance(ground_z, bool) or
+            not all(math.isfinite(value) for value in (*position, ground_z))):
+        raise ValueError('Test ground projection requires finite body XYZ and ground Z')
+    q = normalized_quaternion(orientation)
+    inverse = (-q[0], -q[1], -q[2], q[3])
+
+    # 测试设定：仅用于当前 APPROACH_A 平地测试。参考点位于机身沿地图
+    # 竖直方向的正下方，地图 X/Y 与机身相同，Z 取配置的固定地面高度。
+    # 参考坐标系保留机身 yaw，消除 roll/pitch；这不是实际支撑面估计。
+    yaw = math.atan2(2. * (q[3]*q[2] + q[0]*q[1]),
+                     1. - 2. * (q[1]*q[1] + q[2]*q[2]))
+    reference_rotation = (0., 0., math.sin(yaw/2.), math.cos(yaw/2.))
+    map_offset = (0., 0., ground_z-position[2], 0.)
+    body_offset = _multiply(_multiply(inverse, map_offset), q)
+    body_rotation = normalized_quaternion(_multiply(inverse, reference_rotation))
+    return body_offset[:3], body_rotation
+
+
 class LocalizationGate:
-    """Require one explicitly selected good status and fresh source times."""
+    """Check pose source times and optionally require vendor localization status."""
     def __init__(self, normal_status=-1, pose_max_age=.5, status_max_age=1.5,
-                 future_tolerance=.1):
+                 future_tolerance=.1, require_status=True):
+        if type(require_status) is not bool:
+            raise ValueError('require_location_status must be boolean')
         if (isinstance(normal_status, bool) or not isinstance(normal_status, int) or
                 normal_status not in (-1, 0, 1)):
             raise ValueError('normal_location_status must be -1, 0, or 1')
@@ -72,6 +94,7 @@ class LocalizationGate:
                     not math.isfinite(value) or value <= 0):
                 raise ValueError(f'{name} must be finite and positive')
         self.normal_status = normal_status
+        self.require_status = require_status
         self.pose_max_age = pose_max_age
         self.status_max_age = status_max_age
         self.future_tolerance = future_tolerance
@@ -81,6 +104,8 @@ class LocalizationGate:
         self.reason = 'normal_location_status requires firmware-version confirmation'
 
     def update_status(self, status, stamp, now):
+        if not self.require_status:
+            return self.ready(now)
         if (isinstance(status, bool) or not isinstance(status, int) or
                 not math.isfinite(stamp) or not math.isfinite(now) or
                 stamp > now + self.future_tolerance):
@@ -93,6 +118,9 @@ class LocalizationGate:
         return self.ready(now)
 
     def ready(self, now):
+        if not self.require_status:
+            self.reason = ''
+            return True
         if self.normal_status == -1:
             self.reason = 'normal_location_status requires firmware-version confirmation'
         elif self.status is None or self.status_stamp is None:

@@ -53,7 +53,8 @@ class NativeInterfaceTests(unittest.TestCase):
 
     def test_location_status_reads_meta_and_preserves_source_time(self):
         received = []
-        node = S(adapter=S(observe_location=lambda *value: received.append(value)))
+        node = S(adapter=S(config=S(require_location_status=True),
+                           observe_location=lambda *value: received.append(value)))
         message = S(meta=S(stamp=S(sec=10, nanosec=125000000)),
                     data=S(total_status=1))
         M20MotionNode.on_location(node, message)
@@ -61,12 +62,17 @@ class NativeInterfaceTests(unittest.TestCase):
 
     def test_wrong_location_status_schema_is_rejected(self):
         errors, received = [], []
-        node = S(adapter=S(observe_location=lambda *value: received.append(value)),
+        node = S(adapter=S(config=S(require_location_status=True),
+                           observe_location=lambda *value: received.append(value)),
                  invalid_input=lambda source, exc: errors.append(source))
         message = S(header=S(stamp=S(sec=10, nanosec=0)), data=S(total_status=1))
         M20MotionNode.on_location(node, message)
         self.assertEqual(errors, ['LOCATION_STATUS'])
         self.assertEqual(received, [])
+
+    def test_disabled_location_callback_does_not_parse_or_forward_vendor_status(self):
+        node = S(adapter=S(config=S(require_location_status=False)))
+        M20MotionNode.on_location(node, S())
 
     def test_estop_reads_value_with_receipt_time(self):
         received = []

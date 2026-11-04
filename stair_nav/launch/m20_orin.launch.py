@@ -55,7 +55,7 @@ def generate_launch_description():
         DeclareLaunchArgument('mission_file', description='Site mission YAML'),
         DeclareLaunchArgument('adapter_config', default_value=str(share / 'config' / 'm20_orin.yaml')),
         DeclareLaunchArgument('normal_location_status', default_value='-1',
-                              description='Confirm firmware normal code 0 or 1; -1 blocks navigation'),
+                              description='Used when require_location_status=true in adapter_config; -1 blocks that mode'),
         DeclareLaunchArgument('navigation_reference_frame', default_value='navigation_ground_reference'),
         DeclareLaunchArgument('dry_run', default_value='true', choices=['true', 'false']),
         DeclareLaunchArgument('navigation_mode_confirmed', default_value='false', choices=['true', 'false']),

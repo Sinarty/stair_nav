@@ -16,6 +16,7 @@ class M20Config:
     navigation_mode_confirmed: bool = False
     planner_stopped: bool = False
     normal_location_status: int = -1
+    require_location_status: bool = True
     flat_gait: int = 12290
     stair_gait: int = 12291
     supported_modes: tuple = ('flat',)
@@ -39,7 +40,8 @@ class M20Config:
     stair_min_wz: float = .4
 
     def __post_init__(self):
-        for name in ('dry_run', 'navigation_mode_confirmed', 'planner_stopped'):
+        for name in ('dry_run', 'navigation_mode_confirmed', 'planner_stopped',
+                     'require_location_status'):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f'{name} must be boolean')
         for name in ('motion_timeout', 'imu_timeout', 'location_timeout', 'safety_timeout',
@@ -142,6 +144,8 @@ class M20MotionAdapter:
         self._imu = (stamp, gyro_norm)
 
     def observe_location(self, stamp, status):
+        if not self.config.require_location_status:
+            return
         if (_finite(stamp) and self._location is not None and stamp <= self._location[0]):
             return
         if not _finite(stamp, status):
@@ -242,12 +246,13 @@ class M20MotionAdapter:
             return 'MOTION_STATE'
         if self._imu is None or not self._fresh(self._imu[0], now, c.imu_timeout):
             return 'IMU_STALE'
-        if c.normal_location_status == -1:
-            return 'LOCATION_STATUS_UNCONFIRMED'
-        if self._location is None or not self._fresh(self._location[0], now, c.location_timeout):
-            return 'LOCATION_STALE'
-        if self._location[1] != c.normal_location_status:
-            return 'LOCATION_ABNORMAL'
+        if c.require_location_status:
+            if c.normal_location_status == -1:
+                return 'LOCATION_STATUS_UNCONFIRMED'
+            if self._location is None or not self._fresh(self._location[0], now, c.location_timeout):
+                return 'LOCATION_STALE'
+            if self._location[1] != c.normal_location_status:
+                return 'LOCATION_ABNORMAL'
         if self._estop is None or not self._fresh(self._estop[0], steady, c.safety_timeout):
             return 'ESTOP_STALE'
         if self._estop[1]:
@@ -485,6 +490,7 @@ class M20MotionAdapter:
             capabilities=tuple(c.capabilities), supported_modes=tuple(c.supported_modes))
         return M20Output(feedback, vx, wz, publish, gait_request, dict(
             enabled=self.enabled, stopping=self._stopping, dry_run=c.dry_run,
+            require_location_status=c.require_location_status,
             command_active=bool(live), command_expired=bool(command and not live),
             native_gate=reason, gait_pending=self._pending_gait is not None,
             last_rejection=self._last_rejection, velocity_deadzone=deadzone))

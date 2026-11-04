@@ -22,16 +22,24 @@ class Publisher:
         self.messages.append(message)
 
 
+class ReferenceBroadcaster(Publisher):
+    sendTransform = Publisher.publish
+
+
 class LocalizationHarness(SimpleNamespace):
     retry_pending = M20Localization.retry_pending
+    publish_test_ground_reference = M20Localization.publish_test_ground_reference
 
 
-def harness():
-    gate = LocalizationGate(normal_status=1)
+def harness(require_status=True, test_projection=False):
+    gate = LocalizationGate(normal_status=1 if require_status else -1,
+                            require_status=require_status)
     gate.update_status(1, 10., 10.)
     return LocalizationHarness(
         gate=gate, now=lambda: 10.1, route_frame='map',
         reference_frame='navigation_ground_reference', buffer=Buffer(),
+        test_reference_broadcaster=ReferenceBroadcaster() if test_projection else None,
+        test_ground_z=.05,
         publisher=Publisher(), last_odom_stamp=None, last_received_stamp=None,
         max_pending_odometry=32, pending_odometry=deque())
 
@@ -66,6 +74,88 @@ def status(code, second, nanosecond=0):
 
 
 class LocalizationConversionTests(unittest.TestCase):
+    def test_test_projection_publishes_source_timed_body_to_ground_tf_and_pose(self):
+        node, message = harness(require_status=False, test_projection=True), observation()
+        q = message.pose.pose.orientation
+        q.y = 0.
+        q.z, q.w = math.sin(.3), math.cos(.3)
+        message.pose.pose.position.z = .55
+        M20Localization.on_odom(node, message)
+        self.assertEqual(len(node.test_reference_broadcaster.messages), 1)
+        transform = node.test_reference_broadcaster.messages[0]
+        self.assertEqual(transform.header.frame_id, 'base_link')
+        self.assertEqual(transform.child_frame_id, node.reference_frame)
+        self.assertEqual(transform.header.stamp, message.header.stamp)
+        self.assertAlmostEqual(transform.transform.translation.z, -.5)
+        self.assertEqual(len(node.publisher.messages), 1)
+        output = node.publisher.messages[0]
+        self.assertEqual(output.header, message.header)
+        self.assertAlmostEqual(output.pose.position.x, 2.)
+        self.assertAlmostEqual(output.pose.position.y, 3.)
+        self.assertAlmostEqual(output.pose.position.z, .05)
+        self.assertAlmostEqual(output.pose.orientation.z, math.sin(.3))
+        self.assertFalse(node.pending_odometry)
+
+    def test_test_projection_follows_body_height_and_does_not_replay_duplicates(self):
+        node = harness(require_status=False, test_projection=True)
+        for index, body_z in enumerate((.55, .65)):
+            message = observation(Time(sec=10, nanosec=index*100_000_000))
+            message.pose.pose.position.z = body_z
+            node.now = lambda index=index: 10. + index*.1 + .01
+            M20Localization.on_odom(node, message)
+            M20Localization.on_odom(node, message)
+        self.assertEqual(len(node.test_reference_broadcaster.messages), 2)
+        self.assertEqual(len(node.publisher.messages), 2)
+        for output in node.publisher.messages:
+            self.assertAlmostEqual(output.pose.position.x, 2.)
+            self.assertAlmostEqual(output.pose.position.y, 3.)
+            self.assertAlmostEqual(output.pose.position.z, .05)
+
+    def test_test_projection_does_not_broadcast_invalid_or_stale_odometry(self):
+        for invalid in ('stale', 'frame', 'quaternion', 'missing_body', 'position'):
+            with self.subTest(invalid=invalid):
+                node = harness(require_status=False, test_projection=True)
+                message = observation()
+                if invalid == 'stale':
+                    message.header.stamp.sec = 9
+                elif invalid == 'frame':
+                    message.header.frame_id = 'odom'
+                elif invalid == 'quaternion':
+                    message.pose.pose.orientation.y = 0.
+                    message.pose.pose.orientation.w = 0.
+                elif invalid == 'missing_body':
+                    message.child_frame_id = ''
+                else:
+                    message.pose.pose.position.x = math.nan
+                M20Localization.on_odom(node, message)
+                self.assertFalse(node.test_reference_broadcaster.messages)
+                self.assertFalse(node.publisher.messages)
+
+    def test_corrected_odometry_does_not_need_vendor_status_when_disabled(self):
+        node, message = harness(require_status=False), observation()
+        self.assertIsNone(node.gate.status)
+        M20Localization.on_status(node, SimpleNamespace())
+        node.buffer.set_transform(support_transform(message.header.stamp), 'test')
+        M20Localization.on_odom(node, message)
+        self.assertEqual(len(node.publisher.messages), 1)
+        self.assertEqual(node.publisher.messages[0].header, message.header)
+
+    def test_disabling_status_keeps_pose_and_tf_validation(self):
+        for invalid in ('stale', 'frame', 'quaternion', 'missing_tf'):
+            with self.subTest(invalid=invalid):
+                node, message = harness(require_status=False), observation()
+                if invalid != 'missing_tf':
+                    node.buffer.set_transform(support_transform(message.header.stamp), 'test')
+                if invalid == 'stale':
+                    message.header.stamp.sec = 9
+                elif invalid == 'frame':
+                    message.header.frame_id = 'odom'
+                elif invalid == 'quaternion':
+                    message.pose.pose.orientation.y = 0.
+                    message.pose.pose.orientation.w = 0.
+                M20Localization.on_odom(node, message)
+                self.assertFalse(node.publisher.messages)
+
     def test_timestamped_tf_uses_full_3d_pose_and_preserves_source_stamp(self):
         node, message = harness(), observation()
         node.buffer.set_transform(support_transform(message.header.stamp), 'test')

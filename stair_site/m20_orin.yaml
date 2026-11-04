@@ -4,12 +4,16 @@
 # 距离用 m，时间用 s，角速度用 rad/s；布尔值写 true/false，不加引号。
 m20_localization:
   ros__parameters:
-    odom_topic: /ODOM  # 话题名字符串，输入 nav_msgs/msg/Odometry。
+    odom_topic: /localization/odometry  # 修正后的定位输入，nav_msgs/msg/Odometry。
     location_status_topic: /LOCATION_STATUS  # 原厂定位质量话题名字符串。
     location_status_type: drdds/msg/LocationStatus  # ROS 消息类型字符串，须匹配实际厂商类型。
     output_pose_topic: /localization/pose  # 转换后的支撑参考 PoseStamped 输出话题。
-    navigation_reference_frame: navigation_ground_reference  # 已标定的支撑参考 TF 坐标系名称。
-    normal_location_status: -1  # 整数；-1 为未确认；例：1，仅在本机正常码确认为 1 时填写，也可能为 0。
+    navigation_reference_frame: navigation_ground_reference  # 本次测试的地面参考 TF 坐标系名称。
+    # 测试设定：参考点位于机身正下方，使用当前地图的固定地面 Z 平面。
+    test_flat_ground_projection: true  # 自动发布机身 → navigation_ground_reference 的动态 TF。
+    test_ground_z: 0.05  # m，与 maps/floor_1.yaml.height_z 和 A 点 Z 一致。
+    normal_location_status: -1  # require_location_status=false 时不参与判断。
+    require_location_status: false  # 本次不依赖原厂定位状态码；保留位姿时间和几何检查。
     odom_qos_reliability: best_effort  # 字符串，可选 best_effort/reliable，按实际发布端匹配。
     status_qos_reliability: best_effort  # 字符串，可选 best_effort/reliable。
     odom_timeout: 0.5  # s，定位观测允许的最大年龄。
@@ -22,7 +26,8 @@ m20_motion_adapter:
     dry_run: true  # 布尔值；true 为只读，false 允许后续显式启用；launch 会覆盖本值。
     navigation_mode_confirmed: false  # 布尔值；人工确认已处于导航使用模式后才声明 true。
     planner_stopped: false  # 布尔值；人工确认原厂冲突 planner 已停止后才声明 true。
-    normal_location_status: -1  # 整数；确认 0 或 1，与定位适配器一致；launch 会覆盖两处正常码。
+    normal_location_status: -1  # require_location_status=false 时不参与判断；launch 会覆盖本值。
+    require_location_status: false  # 与定位节点一致，本次不依赖 /LOCATION_STATUS。
     publish_rate: 20.0  # Hz，发布/看门狗频率；代码允许 10.0～100.0。
     command_topic: /navigation/command  # 导航 ControlCommand 输入话题名。
     motion_status_topic: /motion/status  # 导航 MotionStatus 反馈输出话题名。
