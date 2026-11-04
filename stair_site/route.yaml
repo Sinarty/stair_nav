@@ -1,23 +1,72 @@
-# 现场路线占位：待填写后才能启动，当前不具备可执行路线。
+# 现场最小流程：从当前有效定位出发，只执行 APPROACH_A，到 A 点保持后结束。
+# 所有待实测参数保留 null，填写完成前不能启动。
 # 结构参考 ../stair_nav/stair_nav/demo/config/route.yaml。
 # 请使用实测数据，不要直接复制 demo 坐标、速度、能力或到达容差。
 
 frame: null  # TODO：与现场地图及转换后的定位一致的坐标系。
 reference_point: ground_projection
-sequence: []  # TODO：按执行顺序填写 segments 中的段 ID。
+sequence: [APPROACH_A]
 
-# 已接入 ~/map_2d 的二维栅格；这里只建立地图引用，不预设路段或运动参数。
+# 已接入 ~/map_2d 的二维栅格，运动数值参数等待实测确认。
 # floor_1 是内部地图标识，实际楼层、frame 和支撑高度仍需现场确认。
 # 后续使用其他平台或楼梯地图的路段需显式覆盖这两个字段。
 defaults:
   platform_id: floor_1
   grid_file: maps/floor_1.yaml
+  allowed_modes: [flat]
+  required_capabilities: []
+  tracking:
+    lookahead: null
+    max_vx: null
+    max_wz: null
+    max_accel: null
+    max_angular_accel: null
+    slowdown_distance: null
+    min_vx: null
+    max_cross_track: null
+    max_height_error: null
+    match_backtrack: null
+    match_forward: null
+    heading_stop_threshold: null
+    # 未验证的能力先关闭；若启用，需要同步适配器的已验证 capabilities。
+    allow_turn_in_place: false
+    allow_reverse: false
+    allow_stair_correction: false
+  planning:
+    timeout: null
+    max_jump: null
+    join_xy: null
+    join_z: null
+    inflation_radius: null
+    unknown_is_obstacle: true
+    simplify: true
+  timeouts:
+    ready: null
+    execution: null
+    pose: null
+    status: null
+    arrival: null
 
-# TODO：节点需包含实测 position: [x, y, z]、yaw 和 arrival。
-nodes: {}
+nodes:
+  A:
+    position: [null, null, null]  # TODO：实测目标点 [x, y, z]，单位 m。
+    yaw: null  # TODO：到达朝向，单位 rad。
+    arrival:
+      xy: null
+      z: null
+      yaw: null
+      progress: null
+      confirm_seconds: null
+      require_exit: false
+      require_stable: true
+      require_hold: true
+      required_mode: flat
 
-# TODO：每段需配置起终点、kind/backend/mode、模式与能力要求，
-# 以及 tracking/planning/timeouts；也可通过 defaults 提供共同参数。
-# 默认栅格文件已在 defaults.grid_file 中引用。
-# 预设路径引用示例：path_file: paths/ab.yaml
-segments: {}
+segments:
+  APPROACH_A:
+    # start/end 为路线节点引用；规划起点由实时定位提供，无需预设起点坐标。
+    start: A
+    end: A
+    kind: platform
+    backend: grid_astar
+    mode: flat

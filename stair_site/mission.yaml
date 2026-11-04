@@ -1,11 +1,12 @@
-# 现场任务占位：需先完成 route.yaml，再填写一致的执行段序列。
-route_id: site_inspection
+# 独立 APPROACH_A 最小测试：当前有效定位 → A，到达并保持后结束。
+route_id: site_approach_a
 route_file: route.yaml
-sequence: []  # TODO：填写实际要执行的段 ID，例如首测仅包含一条平地段。
+sequence: [APPROACH_A]
 
-# 可选：接近起点的段必须是 platform + grid_astar。
-# 未配置接近段时，需人工将机器人放在首节点允许的位置和朝向范围内。
-# approach_segment: TODO
+readiness:
+  # 接近测试从实时定位起步；A 是目标，不要求任务开始时已处于 A。
+  # 定位、运控、控制释放以及规划器对起点/高度/碰撞的检查继续生效。
+  require_start_node: false
 
-# 如需调整任务就绪条件及超时，参考：
-# ../stair_nav/stair_nav/demo/config/mission.yaml
+# 本次把 APPROACH_A 作为唯一执行段，不同时设置同名 approach_segment。
+# 现场坐标、到达和运动参数仍在 route.yaml 中保留 null，待实测后填写。
