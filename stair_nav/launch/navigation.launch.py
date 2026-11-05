@@ -14,6 +14,7 @@ def generate_launch_description():
         'motion_status_topic': ('/motion/status', 'Adapter MotionStatus feedback'),
         'command_topic': ('/navigation/command', 'Adapter ControlCommand input'),
         'channel_event_topic': ('/navigation/channel_event', 'External channel blocking events'),
+        'obstacle_status_topic': ('/navigation/obstacle_status', 'Leased flat-ground obstacle perception'),
         'navigate_segment_action': ('/navigate_segment', 'Internal NavigateSegment action'),
         'navigation_state_service': ('/navigation/get_state', 'Navigation release snapshot service'),
         'execute_mission_action': ('/execute_mission', 'Public ExecuteMission action'),

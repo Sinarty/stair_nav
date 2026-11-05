@@ -29,6 +29,10 @@ class PurePursuit:
         self.last_pose = None
         self.command_ttl = command_ttl
 
+    def reset_motion(self):
+        """Restart acceleration from rest while retaining path matching progress."""
+        self.vx = self.wz = 0.0
+
     def _visible_target(self, pose, distance):
         grid = self.path.collision_grid
         target = self.path.sample(distance)

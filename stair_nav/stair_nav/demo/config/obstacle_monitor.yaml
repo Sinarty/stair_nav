@@ -1,0 +1,17 @@
+# Synthetic flat-ground demonstration parameters, not robot calibration.
+obstacle_monitor:
+  ros__parameters:
+    reference_frame: simulation_nav_reference
+    cloud_topic: /simulation/points
+    cloud_qos_reliability: best_effort
+    forward_distance: 1.2
+    half_width: 0.45
+    min_height: 0.12
+    max_height: 1.8
+    self_front: 0.3
+    self_rear: 0.4
+    self_half_width: 0.25
+    voxel_size: 0.08
+    min_points: 3
+    clear_seconds: 1.0
+    cloud_timeout: 0.5

@@ -1,0 +1,8 @@
+route_id: flat_obstacle_demo
+route_file: obstacle_route.yaml
+sequence: [APPROACH_A]
+readiness:
+  require_start_node: false
+timeouts:
+  execution: 40.0
+  feedback: 2.0

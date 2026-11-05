@@ -55,6 +55,25 @@ def test_accepted_segment_does_not_claim_motion_started():
     assert '本段路径进度' not in text
 
 
+@pytest.mark.parametrize('phase, description', [
+    ('obstacle_blocked', '前方存在障碍，等待清障'),
+    ('obstacle_invalid', '障碍感知无效，保持停止'),
+    ('waiting_hold', '等待运控停稳和保持确认'),
+])
+def test_obstacle_pause_is_visible_without_claiming_task_failure(phase, description):
+    reporter = MissionReporter(progress_interval=10.)
+    reporter.feedback(feedback(), 1.)
+    paused = feedback(segment_state='PAUSED_OBSTACLE', phase=phase)
+    text = '\n'.join(reporter.feedback(paused, 1.1))
+    assert '停障暂停，保留当前任务' in text and description in text
+    assert '任务失败' not in text and '故障阻塞' not in text
+    assert '本段路径进度' not in text
+    assert reporter.feedback(paused, 1.2) == []
+    resumed = '\n'.join(reporter.feedback(feedback(), 1.3))
+    assert '[停障恢复]' in resumed and '路径跟踪' in resumed
+    assert 'exec-1' not in resumed  # The existing execution continues.
+
+
 def test_approach_does_not_display_zero_as_main_segment_ordinal():
     lines = MissionReporter().feedback(feedback(
         segment_id='APPROACH_A', segment_index=0, state='APPROACHING_START'), 1.)

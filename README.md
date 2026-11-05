@@ -219,6 +219,83 @@ ros2 launch stair_nav demo.launch.py \
 
 生成器支持楼梯/通道长度、高差、台阶数量和分辨率，不是实测地图转换器。`initial_pose:='[x, y, z, yaw]'` 只修改模拟初始位姿，不能用于设置真实定位。
 
+### 3.5 平地点云停障与自动恢复 demo
+
+这个独立 demo 只执行一段 `APPROACH_A`：从 O `(0, 0)` 沿平地前往 A `(5, 0)`。模拟器持续发布 `PointCloud2`，停障监测节点实际解析点云并判断前方安全区域；出现障碍时段状态进入 `PAUSED_OBSTACLE`，持续发送零速度 `HOLD`。清障后继续同一个任务、执行 ID 和参考路径，从中断进度恢复。
+
+首次运行前重新构建，确保新增的 `ObstacleStatus` 消息、节点、launch 和配置已安装。以下沿用第 2 节的 Galactic 工作空间：
+
+```bash
+source /opt/ros/galactic/setup.bash
+cd ~/galactic_ws
+colcon build --packages-up-to stair_nav --symlink-install
+source install/setup.bash
+export ROS_DOMAIN_ID=190
+export ROS_LOCALHOST_ONLY=1
+ros2 launch stair_nav obstacle_demo.launch.py
+```
+
+Humble 用户在独立的 Humble 工作空间中加载对应 ROS 环境和安装目录；Galactic 目标机的实际运行验收仍需按第 9 节完成。运行本节前先关闭同一 Domain 内的其他 demo；查看状态和调用服务的终端也要加载同一工作空间并设置上述隔离变量。
+
+默认启动 RViz、自动发送一次任务，并在路径进度达到约 **22%** 时，在机器人前方 **0.9 m** 放置模拟行人，**5 s** 后移除。预期看到机器人暂停，行人离开后连续获得 **1 s** 清障观测，再经停稳、保持和运控就绪检查后继续到 A。无桌面环境可改用：
+
+```bash
+ros2 launch stair_nav obstacle_demo.launch.py rviz:=false
+```
+
+RViz 中可查看红色模拟行人、实时点云和安全区域；安全区域随清障、障碍占据和感知失效改变颜色，并显示 `CLEAR`、`OBSTACLE / WAIT` 或 `SENSOR INVALID`。导航段暂停状态可在启动日志和 `/navigation/status` 中查看；任务仍保持活动，不需要再次发送启动请求。
+
+希望手动控制行人时，在终端 A 启动：
+
+```bash
+ros2 launch stair_nav obstacle_demo.launch.py auto_obstacle:=false autostart:=false
+```
+
+另开终端 B、C，各自先加载环境并设置相同 Domain：
+
+```bash
+source /opt/ros/galactic/setup.bash
+source ~/galactic_ws/install/setup.bash
+export ROS_DOMAIN_ID=190
+export ROS_LOCALHOST_ONLY=1
+```
+
+终端 B 发送一次任务并保留客户端等待结果：
+
+```bash
+ros2 run stair_nav mission_client --route-id flat_obstacle_demo
+```
+
+终端 C 在机器人行进时放置行人，观察暂停，再移除并观察恢复：
+
+```bash
+ros2 service call /demo_obstacles/set_obstacle std_srvs/srv/SetBool '{data: true}'
+ros2 service call /demo_obstacles/set_obstacle std_srvs/srv/SetBool '{data: false}'
+```
+
+也可以在任务结束前模拟点云断流和恢复，两条命令之间留出观察暂停的时间：
+
+```bash
+ros2 service call /demo_obstacles/set_cloud_enabled std_srvs/srv/SetBool '{data: false}'
+ros2 service call /demo_obstacles/set_cloud_enabled std_srvs/srv/SetBool '{data: true}'
+```
+
+点云停止更新 **0.5 s** 后失效，导航维持暂停。恢复发布后仍需连续清障观测；若行人仍在安全区域，先移除行人才能恢复。暂停期间定位、运动反馈和取消请求继续检查；在终端 B 按一次 Ctrl+C 可按第 3.3 节取消当前任务。
+
+路线和停障开关在 [obstacle_route.yaml](stair_nav/stair_nav/demo/config/obstacle_route.yaml)，点云话题、安全范围、高度过滤、清障时长及有效期在 [obstacle_monitor.yaml](stair_nav/stair_nav/demo/config/obstacle_monitor.yaml)。这些距离和阈值均为合成平地场景示例，未经实机标定；本 demo 未修改 `stair_site/` 配置，也未启用楼梯段停障。
+
+建议在已构建并加载环境的工作空间根目录运行自动检查：
+
+```bash
+cd ~/galactic_ws
+python3 src/stair_nav/stair_nav/test/ros/check_obstacle_stop.py \
+  --output-dir /tmp/stair_nav_obstacle_check
+python3 src/stair_nav/stair_nav/test/ros/check_obstacle_demo_auto.py \
+  --output-dir /tmp/stair_nav_obstacle_auto_check
+```
+
+两个脚本自行启动隔离的 ROS Domain 和节点图，并将检查产物写入指定目录。第一个检查手动停障、恢复、断流和暂停中取消；第二个仅观察默认自启与自动行人场景，验证无需再次发任务即可完成演示，可加 `--rviz` 同时检查显示。以脚本实际输出和记录为验收依据。
+
 ## 4. 准备现场地图、路线和任务
 
 实机入口必须提供现场文件，没有可直接用于机器人的默认路线。建议将现场配置独立保存，例如：

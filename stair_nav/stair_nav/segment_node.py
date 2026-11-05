@@ -15,10 +15,10 @@ from rclpy.task import Future
 from visualization_msgs.msg import Marker, MarkerArray
 from stair_nav_interfaces.action import NavigateSegment
 from stair_nav_interfaces.srv import GetNavigationState
-from stair_nav_interfaces.msg import ControlCommand, MotionStatus, SegmentStatus, ChannelEvent
+from stair_nav_interfaces.msg import ControlCommand, MotionStatus, SegmentStatus, ChannelEvent, ObstacleStatus
 from stair_nav.core.config import load_route
 from stair_nav.core.engine import SegmentExecutor
-from stair_nav.core.models import Pose, MotionFeedback
+from stair_nav.core.models import Pose, MotionFeedback, ObstacleObservation
 from stair_nav.ros_utils import (
     durable_qos, live_qos, pose_qos, seconds, stamp, pose_from_msg, pose_msg, path_msg,
 )
@@ -58,6 +58,8 @@ class SegmentNavigation(Node):
         self.create_subscription(MotionStatus, '/motion/status', self.on_motion,
                                  live_qos(5), callback_group=self.group)
         self.create_subscription(ChannelEvent, '/navigation/channel_event', self.on_channel,
+                                 live_qos(5), callback_group=self.group)
+        self.create_subscription(ObstacleStatus, '/navigation/obstacle_status', self.on_obstacle,
                                  live_qos(5), callback_group=self.group)
         self.server = ActionServer(
             self, NavigateSegment, self.resolve_topic_name('/navigate_segment'), self.execute,
@@ -125,6 +127,15 @@ class SegmentNavigation(Node):
             response.control_released = bool(not response.busy and (idle_release or terminal_release))
             response.status = self.status_message(status, now)
         return response
+
+    def on_obstacle(self, msg):
+        if msg.header.frame_id != self.route['frame']:
+            return
+        with self.lock:
+            self.core.update_obstacle(ObstacleObservation(
+                stamp=seconds(msg.header.stamp), valid_until=seconds(msg.valid_until),
+                execution_id=msg.execution_id, valid=msg.valid, blocked=msg.blocked,
+                reason=msg.reason, path_stamp=seconds(msg.path_stamp)))
 
     def on_channel(self, msg):
         now = self.now()
@@ -240,6 +251,7 @@ class SegmentNavigation(Node):
 
     def status_message(self, status, now):
         msg = SegmentStatus()
+        msg.path_stamp = stamp(status.path_stamp)
         for field in ('task_id', 'execution_id', 'segment_id', 'phase', 'state',
                       'progress', 'lateral_error', 'heading_error', 'error_code',
                       'error_message', 'geometry_reached', 'navigation_stopped', 'hold_confirmed'):
@@ -268,7 +280,7 @@ class SegmentNavigation(Node):
         if key != self.last_path_key:
             self.last_path_key = key
             if output.path is not None:
-                self.paths.publish(path_msg(output.path, self.route['frame'], now))
+                self.paths.publish(path_msg(output.path, self.route['frame'], status.path_stamp))
             else:
                 empty = PathMsg()
                 empty.header = msg.header

@@ -188,6 +188,7 @@ class MissionCore:
         self._cleanup_at = None
         self._stop_at = None
         self._confirmation_at = None
+        self._pause_at = None
         self._stop_target = None
         self._seen_tasks = set()
 
@@ -251,6 +252,7 @@ class MissionCore:
         self._stop_target = None
         self._cancel_at = self._cancel_ack_at = self._cleanup_at = self._stop_at = None
         self._confirmation_at = None
+        self._pause_at = None
         self._approach_pending = bool(self._approach_segment)
         self._select(-1 if self._approach_pending else 0, now)
         self._transition(MissionState.VALIDATING, now, 'START', 'Mission accepted')
@@ -269,6 +271,7 @@ class MissionCore:
         self._accepted = None
         self._result_received = False
         self._confirmation_at = None
+        self._pause_at = None
         if not preserve_wait:
             self._waiting_at = now
         self._timeouts = {**self.config['timeouts'], **self.config.get(
@@ -331,6 +334,10 @@ class MissionCore:
                 self._request_cancel(now)
             else:
                 self._run_at = self._last_feedback = now
+                # Feedback can arrive before the acceptance callback. Only the
+                # portion of that pause after acceptance belongs to this clock.
+                if self._pause_at is not None:
+                    self._pause_at = now
                 state = (MissionState.APPROACHING_START if s.segment_id == self._approach_segment
                          else MissionState.RUNNING)
                 self._transition(state, now, 'ACCEPTED')
@@ -353,9 +360,25 @@ class MissionCore:
             if data.get('error_code') and not canceling:
                 s.error_code = data['error_code']
                 s.error_message = data.get('error_message', '')
+            if not canceling:
+                paused = data.get('segment_state') == 'PAUSED_OBSTACLE'
+                observed_at = min(now, sample)
+                if paused and self._pause_at is None:
+                    self._pause_at = max(observed_at, getattr(self, '_run_at', observed_at))
+                elif not paused and self._pause_at is not None:
+                    # Preserve the consumed budget across every pause. Source
+                    # timestamps retain intermediate transitions queued in one
+                    # tick; callback delay must not extend the pause window.
+                    duration = max(0., observed_at-self._pause_at)
+                    if self._accepted is True:
+                        self._run_at += duration
+                    if self._confirmation_at is not None:
+                        self._confirmation_at += duration
+                    self._pause_at = None
             self._segment_transition(data.get('segment_state', ''), data.get('phase', ''),
                                      now, 'SEGMENT_FEEDBACK', data.get('error_code') or s.error_code)
-            confirming = s.segment_state == 'ARRIVAL_CONFIRM' or s.phase == 'geometric_candidate'
+            confirming = (s.segment_state != 'PAUSED_OBSTACLE' and
+                          (s.segment_state == 'ARRIVAL_CONFIRM' or s.phase == 'geometric_candidate'))
             if confirming and not canceling and self._confirmation_at is None:
                 self._confirmation_at = now
             # Once arrival confirmation has started, leaving/re-entering cannot
@@ -489,10 +512,14 @@ class MissionCore:
                 self._begin_stop('FAILED', 'GOAL_ACCEPT_TIMEOUT',
                                  'Acceptance unknown; cancel late accepted handle; no retry', now, 'TIMEOUT')
         elif s.state in (MissionState.RUNNING, MissionState.APPROACHING_START):
-            if now - self._run_at >= self._timeouts['execution']:
+            # A temporary obstacle keeps the same downstream Action alive.
+            # Pause only the business clocks: heartbeat/transport and all
+            # cancellation/cleanup deadlines still use the current clock.
+            business_now = self._pause_at if self._pause_at is not None else now
+            if business_now - self._run_at >= self._timeouts['execution']:
                 self._begin_stop('FAILED', 'EXECUTION_TIMEOUT', 'Segment execution exceeded mission deadline', now, 'TIMEOUT')
             elif (self._confirmation_at is not None and
-                  now - self._confirmation_at >= self._timeouts['confirmation']):
+                  business_now - self._confirmation_at >= self._timeouts['confirmation']):
                 self._begin_stop('FAILED', 'CONFIRMATION_TIMEOUT', 'Segment arrival confirmation exceeded deadline', now, 'TIMEOUT')
             elif now - self._last_feedback >= self._timeouts['feedback']:
                 self._begin_stop('FAILED', 'FEEDBACK_TIMEOUT', 'No fresh segment feedback', now, 'TIMEOUT')

@@ -1,0 +1,75 @@
+# SYNTHETIC FLAT DEMO ONLY. Live obstacle sensing is enabled for this route.
+frame: map
+reference_point: ground_projection
+control_period: 0.05
+command_ttl: 0.2
+sequence: [APPROACH_A]
+defaults:
+  allowed_modes: [flat]
+  required_capabilities: [turn_in_place]
+  obstacle_stop:
+    enabled: true
+    max_pause: 0.0
+  tracking:
+    lookahead: 0.35
+    max_vx: 0.35
+    max_wz: 0.6
+    max_accel: 0.4
+    max_angular_accel: 1.0
+    slowdown_distance: 0.6
+    min_vx: 0.025
+    max_cross_track: 0.3
+    max_height_error: 0.15
+    match_backtrack: 0.15
+    match_forward: 1.0
+    allow_turn_in_place: true
+    allow_reverse: false
+    allow_stair_correction: false
+    heading_stop_threshold: 1.0
+  planning:
+    timeout: 3.0
+    max_jump: 0.5
+    join_xy: 0.25
+    join_z: 0.15
+    inflation_radius: 0.2
+    unknown_is_obstacle: true
+    simplify: true
+  timeouts:
+    ready: 5.0
+    execution: 35.0
+    pose: 0.5
+    status: 0.5
+    arrival: 8.0
+nodes:
+  O:
+    position: [0.0, 0.0, 0.0]
+    yaw: 0.0
+    arrival: &arrival
+      xy: 0.1
+      z: 0.1
+      yaw: 0.15
+      progress: 0.97
+      confirm_seconds: 0.5
+      require_exit: false
+      require_stable: true
+      require_hold: true
+      required_mode: flat
+  A:
+    position: [5.0, 0.0, 0.0]
+    yaw: 0.0
+    arrival: *arrival
+segments:
+  APPROACH_A:
+    start: O
+    end: A
+    kind: platform
+    mode: flat
+    backend: grid_astar
+    platform_id: obstacle_flat
+    grid_file: maps/obstacle_flat.yaml
+simulation:
+  initial_node: O
+  hold_delay: 0.25
+  stable_delay: 0.25
+  capabilities: [turn_in_place]
+  supported_modes: [flat]

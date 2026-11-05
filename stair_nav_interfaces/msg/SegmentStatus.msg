@@ -1,4 +1,6 @@
 std_msgs/Header header
+# Actual reference-path generation; zero until planning has finished.
+builtin_interfaces/Time path_stamp
 string task_id
 string execution_id
 string segment_id

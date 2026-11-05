@@ -26,6 +26,18 @@ class Pose:
 
 
 @dataclass(frozen=True)
+class ObstacleObservation:
+    """A leased perception decision for one execution, never a stop acknowledgement."""
+    stamp: float
+    valid_until: float
+    execution_id: str
+    valid: bool
+    blocked: bool
+    reason: str = ''
+    path_stamp: float = 0.0
+
+
+@dataclass(frozen=True)
 class Waypoint:
     x: float
     y: float
@@ -109,6 +121,7 @@ class Status:
     geometry_reached: bool = False
     navigation_stopped: bool = True
     hold_confirmed: bool = False
+    path_stamp: float = 0.0
 
 
 @dataclass

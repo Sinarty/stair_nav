@@ -24,6 +24,7 @@ def generate_launch_description():
         DeclareLaunchArgument('route_file', default_value=str(share/'demo'/'config'/'route.yaml')),
         DeclareLaunchArgument('mission_file', default_value=str(share/'demo'/'config'/'mission.yaml')),
         DeclareLaunchArgument('rviz', default_value='true'),
+        DeclareLaunchArgument('rviz_config', default_value=str(share/'demo'/'rviz'/'demo.rviz')),
         DeclareLaunchArgument('autostart', default_value='true'),
         DeclareLaunchArgument('initial_pose', default_value='[]',
                              description='Simulation-only [x, y, z, yaw]; [] starts at route origin O'),
@@ -36,6 +37,6 @@ def generate_launch_description():
              parameters=[{'route_file': route, 'mission_file': mission, 'autostart': ParameterValue(
                  LaunchConfiguration('autostart'), value_type=bool)}]),
         Node(package='rviz2', executable='rviz2', output='screen',
-             arguments=['-d', str(share/'demo'/'rviz'/'demo.rviz')],
+             arguments=['-d', LaunchConfiguration('rviz_config')],
              condition=IfCondition(LaunchConfiguration('rviz'))),
     ])

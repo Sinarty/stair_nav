@@ -184,6 +184,40 @@ def test_steady_watchdog_expires_with_ros_time_paused_and_ros_rollback_disables(
     assert out.vx == 0.
 
 
+def test_same_execution_can_hold_beyond_original_track_lease_then_resume():
+    rig = Rig()
+    assert rig.enable()[0]
+    original = rig.command('TRACK', vx=.2, wz=.1)
+    assert rig.adapter.accept(original, rig.now, rig.steady)
+    assert (rig.tick().vx, rig.tick().wz) == (.2, .1)
+    rig.step(.05, vx=.2, wz=.1)
+    assert rig.accept()  # An obstacle revokes TRACK under the same execution ID.
+    out = rig.tick()
+    assert out.vx == out.wz == 0. and out.publish_velocity
+    assert not out.feedback.stable and not out.feedback.hold_confirmed
+    for _ in range(12):
+        rig.step(.1)
+        assert rig.accept()
+        out = rig.tick()
+        assert out.publish_velocity and out.vx == out.wz == 0.
+        assert out.feedback.execution_id == original.execution_id
+        assert out.feedback.ready and not out.feedback.fault_code
+        assert not out.diagnostics['command_expired']
+        assert out.gait_request is None
+    assert rig.now > original.valid_until+.5
+    assert out.feedback.stable and out.feedback.hold_confirmed
+    assert rig.adapter.enabled
+    # A strictly newer TRACK continues this task without another enable or goal.
+    rig.step(.01)
+    assert rig.accept(behavior='TRACK', vx=.1, wz=.05)
+    out = rig.tick()
+    assert out.publish_velocity and (out.vx, out.wz) == (.1, .05)
+    assert out.feedback.execution_id == original.execution_id
+    assert out.feedback.segment_id == original.segment_id
+    assert out.feedback.ready and not out.feedback.hold_confirmed
+    assert not out.feedback.fault_code and not out.diagnostics['command_expired']
+
+
 def test_limits_fault_without_changing_curvature_and_deadzone_is_diagnostic_only():
     rig = Rig()
     assert rig.enable()[0] and rig.accept(behavior='TRACK', vx=.05, wz=.1)

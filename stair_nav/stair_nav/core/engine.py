@@ -21,6 +21,7 @@ class State(str, Enum):
     WAIT_READY = 'WAIT_READY'
     EXECUTING = 'EXECUTING'
     ARRIVAL_CONFIRM = 'ARRIVAL_CONFIRM'
+    PAUSED_OBSTACLE = 'PAUSED_OBSTACLE'
     SUCCEEDED = 'SUCCEEDED'
     FAILED = 'FAILED'
     CANCELED = 'CANCELED'
@@ -37,6 +38,7 @@ class SegmentExecutor:
         self._owns_pool = planning_executor is None
         self.status = Status()
         self.path = None
+        self._path_stamp = None
         self.pose = None
         self.motion = None
         self._tracker = None
@@ -49,6 +51,11 @@ class SegmentExecutor:
         self._arrival_since = None
         self._arrival_started = None
         self._execution_started = None
+        self._obstacle = None
+        self._pause_started = None
+        self._pause_state = None
+        self._pause_phase = ''
+        self._pause_state_since = None
 
     @property
     def active(self):
@@ -65,6 +72,7 @@ class SegmentExecutor:
         self.status = Status(task_id=task_id, execution_id=execution_id,
                              segment_id=segment_id, phase='checking', state=State.CHECKING)
         self.path = None
+        self._path_stamp = None
         self.motion = None
         self._tracker = None
         self._target = None
@@ -76,6 +84,11 @@ class SegmentExecutor:
         self._arrival_since = None
         self._arrival_started = None
         self._execution_started = None
+        self._obstacle = None
+        self._pause_started = None
+        self._pause_state = None
+        self._pause_phase = ''
+        self._pause_state_since = None
         return True
 
     def update_pose(self, pose):
@@ -100,6 +113,96 @@ class SegmentExecutor:
         old = self._blocked.get(segment_id)
         if old is None or stamp >= old[2]:
             self._blocked[segment_id] = (bool(blocked), reason, stamp)
+
+    def update_obstacle(self, observation):
+        """Accept only this execution's observations; invalid input stays visible."""
+        if (not observation.execution_id or
+                observation.execution_id != self.status.execution_id):
+            return False
+        previous = self._obstacle
+        if (previous is not None and math.isfinite(previous.stamp) and
+                math.isfinite(observation.stamp) and observation.stamp < previous.stamp):
+            return False
+        self._obstacle = observation
+        return True
+
+    def _pause_obstacle(self, now, phase):
+        if self.status.state != State.PAUSED_OBSTACLE:
+            self._pause_state = self.status.state
+            self._pause_phase = self.status.phase
+            self._pause_state_since = self._state_since
+            self._pause_started = now
+            self._transition(State.PAUSED_OBSTACLE, now)
+            if self._tracker is not None:
+                self._tracker.reset_motion()
+        self.status.phase = phase
+        self.status.geometry_reached = False
+        self._arrival_since = None
+
+    def _obstacle_gate(self, now, has_pose):
+        """Pause without ending the Action; sensor and motion leases still run."""
+        if not self.seg['obstacle_stop']['enabled']:
+            return True
+        # Planning never authorizes motion. Consume its result normally, then
+        # gate WAIT_READY, so a blocked corridor cannot hide a failed worker.
+        if self.status.state == State.PLANNING:
+            return True
+        paused = self.status.state == State.PAUSED_OBSTACLE
+        original = self._pause_state if paused else self.status.state
+        if not has_pose and (original != State.CHECKING or
+                             now - self._started > self.seg['timeouts']['pose']):
+            raise NavError('POSE_MISSING', 'Localization unavailable while waiting for obstacle clearance')
+        if paused:
+            if self.motion is not None:
+                self._check_motion(now, False)
+            elif now - self._pause_started > self.seg['timeouts']['ready']:
+                raise NavError('READY_TIMEOUT', 'No current-execution motion feedback during obstacle hold')
+            maximum = self.seg['obstacle_stop']['max_pause']
+            if maximum and now - self._pause_started >= maximum:
+                raise NavError('OBSTACLE_PAUSE_TIMEOUT', 'Obstacle pause exceeded its configured deadline')
+        elif original in (State.EXECUTING, State.ARRIVAL_CONFIRM):
+            self._check_motion(now, True)
+        observation = self._obstacle
+        usable = bool(observation is not None and observation.valid is True and
+                      observation.execution_id == self.status.execution_id and
+                      math.isfinite(observation.stamp) and math.isfinite(observation.valid_until) and
+                      observation.stamp <= now + .1 and
+                      observation.stamp <= observation.valid_until and now < observation.valid_until)
+        if usable and self.path is not None:
+            usable = (math.isfinite(observation.path_stamp) and
+                      observation.path_stamp + 1e-6 >= self._path_stamp)
+        if (observation is not None and math.isfinite(observation.stamp) and
+                observation.stamp > now + .1):
+            # Fail closed on this sample without letting its invalid future
+            # stamp suppress later, correctly timed recovery observations.
+            self._obstacle = None
+        if not usable or observation.blocked:
+            self._pause_obstacle(now, 'obstacle_blocked' if usable else 'obstacle_invalid')
+            return False
+        if not paused:
+            return True
+        if (not has_pose or self.motion is None or self.motion.stamp <= self._pause_started or
+                not self.motion.ready or
+                not self.motion.stable or not self.motion.hold_confirmed or
+                self.motion.mode != self.seg['mode']):
+            self.status.phase = 'waiting_hold'
+            return False
+        duration = now - self._pause_started
+        for name in ('_execution_started', '_arrival_started'):
+            value = getattr(self, name)
+            if value is not None:
+                setattr(self, name, value + duration)
+        self._transition(self._pause_state, now)
+        self._state_since = self._pause_state_since + duration
+        self.status.phase = self._pause_phase
+        self._pause_started = None
+        self._pause_state = None
+        self._pause_state_since = None
+        if self._tracker is not None:
+            self._tracker.reset_motion()
+        # Keep this output a fresh HOLD. The next tick revalidates localization,
+        # the clear lease, readiness and path matching before issuing TRACK.
+        return False
 
     def _transition(self, state, now):
         self.status.state = state
@@ -187,7 +290,9 @@ class SegmentExecutor:
                     if blocked and blocked[0]:
                         raise NavError('CHANNEL_BLOCKED', blocked[1] or 'External channel blocked')
                 has_pose = self._valid_pose(now)
-                if self.status.state == State.CHECKING:
+                if not self._obstacle_gate(now, has_pose):
+                    pass
+                elif self.status.state == State.CHECKING:
                     if not has_pose:
                         if now - self._started > self.seg['timeouts']['pose']:
                             raise NavError('POSE_MISSING', 'Localization never became available')
@@ -211,6 +316,8 @@ class SegmentExecutor:
                                 self.seg['planning'].get('join_z', 0.15)):
                             raise NavError('START_MOVED', 'Robot moved outside the validated planning start')
                         self.path = path
+                        self._path_stamp = now
+                        self.status.path_stamp = now
                         self._tracker = PurePursuit(path, self.seg['tracking'], self.goal,
                                                     self.route.get('command_ttl', .2))
                         self.status.phase = 'waiting_ready'

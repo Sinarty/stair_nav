@@ -19,7 +19,9 @@ def _merge(a, b):
 def segment_config(route, segment_id):
     if segment_id not in route['segments']:
         raise NavError('UNKNOWN_SEGMENT', f'Unknown segment: {segment_id}')
-    result = _merge(route.get('defaults', {}), route['segments'][segment_id])
+    defaults = _merge({'obstacle_stop': {'enabled': False, 'max_pause': 0.0}},
+                      route.get('defaults', {}))
+    result = _merge(defaults, route['segments'][segment_id])
     result['id'] = segment_id
     return result
 
@@ -76,6 +78,18 @@ def validate_route(route):
         check(seg['backend'] in ('preset_path', 'grid_astar', 'height_grid_astar'), f'{sid}: unknown backend')
         check(seg['kind'] in ('stair', 'platform'), f'{sid}: unknown kind')
         check(seg['mode'] in seg['allowed_modes'], f'{sid}: mode must be allowed')
+        obstacle_stop = seg['obstacle_stop']
+        check(isinstance(obstacle_stop, dict) and
+              not set(obstacle_stop) - {'enabled', 'max_pause'},
+              f'{sid}: obstacle_stop must contain only enabled and max_pause')
+        check(isinstance(obstacle_stop.get('enabled'), bool),
+              f'{sid}: obstacle_stop.enabled must be a boolean')
+        max_pause = obstacle_stop.get('max_pause')
+        check(isinstance(max_pause, (int, float)) and not isinstance(max_pause, bool)
+              and math.isfinite(max_pause) and max_pause >= 0,
+              f'{sid}: obstacle_stop.max_pause must be finite and nonnegative')
+        check(not obstacle_stop['enabled'] or (seg['kind'] == 'platform' and seg['mode'] == 'flat'),
+              f'{sid}: obstacle_stop is supported only for platform segments in flat mode')
         arrival_mode = nodes[seg['end']]['arrival'].get('required_mode', '')
         check(not arrival_mode or arrival_mode in seg['allowed_modes'],
               f'{sid}: arrival mode must be allowed')

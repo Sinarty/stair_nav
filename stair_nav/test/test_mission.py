@@ -244,6 +244,136 @@ def test_execution_confirmation_feedback_deadlines_revoke(setup, timeout, code):
     assert len(kinds(effects, 'CANCEL')) == 1 and not kinds(effects, 'SEND')
 
 
+def test_obstacle_pause_keeps_same_execution_and_excludes_long_wait(setup):
+    route, config, _ = setup
+    config['timeouts'].update(execution=.4, feedback=.25)
+    core = MissionCore(route, config)
+    execution_id = running(core)
+    for index in range(101):
+        now = 1.1 + index*.1
+        effects = event(core, 'FEEDBACK', now, stamp=now,
+                        segment_state='PAUSED_OBSTACLE', phase='obstacle_blocked', progress=.3)
+        assert core.status.state == S.RUNNING and core.busy and not core.status.blocked
+        assert core.status.execution_id == execution_id
+        assert core.status.segment_progress == .3 and core.status.completed_segments == 0
+        assert not any(kinds(effects, kind) for kind in ('SEND', 'CANCEL', 'TERMINAL'))
+    event(core, 'FEEDBACK', 11.2, stamp=11.2,
+          segment_state='EXECUTING', phase='platform', progress=.3)
+    event(core, 'FEEDBACK', 11.49, stamp=11.49,
+          segment_state='EXECUTING', phase='platform', progress=.4)
+    assert core.status.state == S.RUNNING
+    effects = event(core, 'FEEDBACK', 11.53, stamp=11.53,
+                    segment_state='EXECUTING', phase='platform', progress=.4)
+    assert core.status.error_code == 'EXECUTION_TIMEOUT'
+    assert len(kinds(effects, 'CANCEL')) == 1
+
+
+def test_obstacle_pause_preserves_consumed_confirmation_budget(setup):
+    route, config, _ = setup
+    config['timeouts'].update(confirmation=.4, execution=100., feedback=.5)
+    core = MissionCore(route, config)
+    running(core)
+    event(core, 'FEEDBACK', 1.1, stamp=1.1,
+          segment_state='ARRIVAL_CONFIRM', phase='geometric_candidate', progress=1.)
+    for index in range(41):
+        now = 1.2 + index*.1
+        event(core, 'FEEDBACK', now, stamp=now,
+              segment_state='PAUSED_OBSTACLE', phase='obstacle_blocked', progress=1.)
+        assert core.status.state == S.RUNNING
+    event(core, 'FEEDBACK', 5.3, stamp=5.3,
+          segment_state='ARRIVAL_CONFIRM', phase='geometric_candidate', progress=1.)
+    event(core, 'FEEDBACK', 5.58, stamp=5.58,
+          segment_state='ARRIVAL_CONFIRM', phase='geometric_candidate', progress=1.)
+    assert core.status.state == S.RUNNING
+    event(core, 'FEEDBACK', 5.62, stamp=5.62,
+          segment_state='ARRIVAL_CONFIRM', phase='geometric_candidate', progress=1.)
+    assert core.status.error_code == 'CONFIRMATION_TIMEOUT'
+
+
+def test_repeated_obstacle_pauses_do_not_reset_execution_budget(setup):
+    route, config, _ = setup
+    config['timeouts'].update(execution=1., feedback=2.)
+    core = MissionCore(route, config)
+    running(core)
+    for now, state in ((1.31, 'PAUSED_OBSTACLE'), (2.31, 'EXECUTING'),
+                       (2.61, 'PAUSED_OBSTACLE'), (3.61, 'EXECUTING')):
+        event(core, 'FEEDBACK', now, stamp=now, segment_state=state, phase='platform')
+        assert core.status.state == S.RUNNING
+    event(core, 'FEEDBACK', 4.03, stamp=4.03, segment_state='EXECUTING', phase='platform')
+    assert core.status.error_code == 'EXECUTION_TIMEOUT'
+
+
+@pytest.mark.parametrize('repeat_sample', [False, True])
+def test_obstacle_pause_does_not_freeze_feedback_watchdog(setup, repeat_sample):
+    route, config, _ = setup
+    config['timeouts'].update(execution=.2, feedback=.5)
+    core = MissionCore(route, config)
+    running(core)
+    event(core, 'FEEDBACK', 1.1, stamp=1.1,
+          segment_state='PAUSED_OBSTACLE', phase='obstacle_invalid')
+    if repeat_sample:
+        event(core, 'FEEDBACK', 1.4, stamp=1.1,
+              segment_state='PAUSED_OBSTACLE', phase='obstacle_invalid')
+    effects = core.tick(1.61)
+    assert core.status.error_code == 'FEEDBACK_TIMEOUT'
+    assert len(kinds(effects, 'CANCEL')) == 1
+
+
+def test_cancel_during_obstacle_pause_uses_normal_cleanup_deadlines(setup):
+    route, config, _ = setup
+    config['timeouts']['cancel_response'] = .2
+    core = MissionCore(route, config)
+    running(core)
+    event(core, 'FEEDBACK', 1.1, stamp=1.1,
+          segment_state='PAUSED_OBSTACLE', phase='obstacle_blocked')
+    assert core.cancel(1.2)
+    assert len(kinds(core.tick(1.2), 'CANCEL')) == 1
+    core.tick(1.41)
+    assert core.status.state == S.FAULT_BLOCKED
+    assert core.status.error_code == 'CANCEL_RESPONSE_TIMEOUT'
+
+
+def test_pause_feedback_before_acceptance_cannot_extend_acceptance_deadline(setup):
+    _, config, core = setup
+    dispatch(core)
+    event(core, 'FEEDBACK', 1.1, stamp=1.1,
+          segment_state='PAUSED_OBSTACLE', phase='obstacle_blocked')
+    core.tick(1.+config['timeouts']['acceptance'])
+    assert core.status.state == S.CANCELING
+    assert core.status.error_code == 'GOAL_ACCEPT_TIMEOUT'
+
+
+def test_pause_feedback_before_acceptance_is_preserved_after_acceptance(setup):
+    route, config, _ = setup
+    config['timeouts'].update(execution=.2, feedback=1.)
+    core = MissionCore(route, config)
+    execution_id = dispatch(core)
+    event(core, 'FEEDBACK', 1.1, stamp=1.1,
+          segment_state='PAUSED_OBSTACLE', phase='obstacle_invalid')
+    event(core, 'ACCEPTED', 1.2, accepted=True)
+    for now in (1.3, 2., 2.8, 3.6):
+        event(core, 'FEEDBACK', now, stamp=now,
+              segment_state='PAUSED_OBSTACLE', phase='obstacle_invalid')
+        assert core.status.state == S.RUNNING
+    event(core, 'FEEDBACK', 4., stamp=4., segment_state='EXECUTING', phase='platform')
+    assert core.status.state == S.RUNNING and core.status.execution_id == execution_id
+    event(core, 'FEEDBACK', 4.21, stamp=4.21, segment_state='EXECUTING', phase='platform')
+    assert core.status.error_code == 'EXECUTION_TIMEOUT'
+
+
+def test_queued_pause_transitions_use_source_times_without_granting_callback_delay(setup):
+    route, config, _ = setup
+    config['timeouts'].update(execution=.5, feedback=1.)
+    core = MissionCore(route, config)
+    running(core)
+    core.post('FEEDBACK', core.status.task_id, core.status.execution_id,
+              stamp=1.1, segment_state='PAUSED_OBSTACLE', phase='obstacle_blocked')
+    core.post('FEEDBACK', core.status.task_id, core.status.execution_id,
+              stamp=1.2, segment_state='EXECUTING', phase='platform')
+    core.tick(1.7)
+    assert core.status.error_code == 'EXECUTION_TIMEOUT'
+
+
 def test_geometric_success_feedback_without_confirmed_result_never_advances(setup):
     _, _, core = setup
     running(core)
@@ -588,6 +718,27 @@ def test_approach_success_does_not_count_and_full_route_still_requires_three_seg
         sent.extend(e.segment_id for e in kinds(effects, 'SEND'))
     assert sent == ['AB', 'BC', 'CD']
     assert core.status.state == S.SUCCEEDED and core.status.completed_segments == 3
+
+
+def test_approach_obstacle_pause_resumes_same_goal_without_counting_a_main_segment(approach_setup):
+    route, config, _ = approach_setup
+    config['per_segment'] = {'APPROACH_A': {'timeouts': {'execution': .4, 'feedback': 1.}}}
+    core = MissionCore(route, config)
+    execution_id = approach_running(core)
+    for now in (1.1, 1.8, 2.5, 3.2):
+        effects = event(core, 'FEEDBACK', now, stamp=now,
+                        segment_state='PAUSED_OBSTACLE', phase='obstacle_blocked', progress=.4)
+        assert core.status.state == S.APPROACHING_START
+        assert core.status.execution_id == execution_id
+        assert core.status.completed_segments == 0
+        assert not kinds(effects, 'SEND') and not kinds(effects, 'CANCEL')
+    event(core, 'FEEDBACK', 3.3, stamp=3.3,
+          segment_state='EXECUTING', phase='platform', progress=.4)
+    effects = event(core, 'RESULT', 3.4, status=4, success=True,
+                    navigation_stopped=True, hold_confirmed=True)
+    assert core.status.state == S.WAITING_READY and core.status.segment_id == 'AB'
+    assert core.status.completed_segments == 0 and core.status.execution_id == ''
+    assert not kinds(effects, 'SEND')
 
 
 @pytest.mark.parametrize('accepted_before_cancel', [False, True])

@@ -8,6 +8,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ControlCommand.msg"
   "msg/MotionStatus.msg"
   "msg/ChannelEvent.msg"
+  "msg/ObstacleStatus.msg"
   "msg/SegmentStatus.msg"
   "msg/MissionStatus.msg"
   "msg/MissionEvent.msg"

@@ -21,6 +21,7 @@ SEGMENT_STATES = {
     'PLANNING': '规划本段路径',
     'WAIT_READY': '等待目标运动模式和运控就绪',
     'EXECUTING': '路径跟踪',
+    'PAUSED_OBSTACLE': '停障暂停，保留当前任务',
     'ARRIVAL_CONFIRM': '几何到达，等待保持及配置要求的确认',
     'SUCCEEDED': '本段执行成功',
     'FAILED': '本段执行失败',
@@ -35,6 +36,9 @@ PHASES = {
     'stair': '楼梯',
     'exit': '出梯',
     'geometric_candidate': '到达确认',
+    'obstacle_blocked': '前方存在障碍，等待清障',
+    'obstacle_invalid': '障碍感知无效，保持停止',
+    'waiting_hold': '通道已清障，等待运控停稳和保持确认',
 }
 ERRORS = {
     'BUSY': '已有活动任务或处于故障阻塞',
@@ -155,7 +159,11 @@ class MissionReporter:
 
         phase = (_text(status.segment_state), _text(status.phase))
         if phase != self._phase:
+            previous_state = self._phase[0] if self._phase else ''
             self._phase = phase
+            if (previous_state == 'PAUSED_OBSTACLE' and phase[0] in
+                    ('CHECKING', 'PLANNING', 'WAIT_READY', 'EXECUTING', 'ARRIVAL_CONFIRM')):
+                lines.append('[停障恢复] 恢复条件已满足，继续当前导航段流程')
             if phase[0] or phase[1]:
                 detail = _label(phase[0], SEGMENT_STATES) if phase[0] else '等待段状态'
                 if phase[1]:
