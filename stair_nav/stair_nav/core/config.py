@@ -98,6 +98,9 @@ def validate_route(route):
         for key in ('ready', 'execution', 'pose', 'status', 'arrival'):
             check(math.isfinite(seg['timeouts'][key]) and seg['timeouts'][key] > 0,
                   f'{sid}: invalid timeouts.{key}')
+        pose_wait = seg['timeouts'].get('pose_wait', 0.)
+        check(isinstance(pose_wait, (int, float)) and not isinstance(pose_wait, bool) and
+              math.isfinite(pose_wait) and pose_wait >= 0, f'{sid}: invalid timeouts.pose_wait')
         for key in ('min_vx', 'match_backtrack'):
             value = seg['tracking'][key]
             check(math.isfinite(value) and value >= 0, f'{sid}: invalid tracking.{key}')

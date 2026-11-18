@@ -134,6 +134,9 @@ ros2 launch stair_nav m20_orin.launch.py \
   planner_stopped:=true
 ```
 
+require_fresh_estop:=false require_fresh_charge:=false
+先忽略原厂充电信息与急停信息
+
 这三个参数覆盖 YAML 中的同名值；后两个参数声明原厂操作已经完成，不会自动切换模式或停止 planner。launch 不会自动发任务，适配器仍未启用。
 
 终端 B 再检查重启后的输入：
@@ -275,3 +278,26 @@ ros2 service call /navigation/get_state stair_nav_interfaces/srv/GetNavigationSt
 ```
 
 reset 只解除任务守卫，不自动恢复旧任务；确认可以开始新任务后，再单独发送下一次请求。
+
+
+1118改动：
+## 遇到的问题
+
+| 问题 | 确认结果 |
+|---|---|
+| Leg-KILO 启动失败 | 先遇到 launch 命令和路径拼写错误，之后确认程序误加载 /opt/MVS 的 libusb，缺少 libusb_set_option，以退出码 127 退出。预加载系统版 libusb 后能启动。 |
+| 重定位不稳定 | 曾出现 LOST 和 RELOCALIZING。日志确认 RViz 的 2D Pose Estimate 已送达，但配准分数过低或没有收敛候选。重启后曾恢复 LOCALIZED。 |
+| 只读导航启动后话题和服务间歇不可见 | 同一批节点运行时，默认 Fast DDS 探针收不到里程计和诊断，参数查询 6 次全超时；仅 UDPv4 探针持续收包，参数查询 6 次全成功。共享内存路径是首要嫌疑，具体端口或锁未确认。 |
+| 机身 TF 查询失败 | Leg-KILO 的实际机身坐标系是 base，现场文档里的 base_link 是示例。用 base 查询曾成功收到地面参考 TF。 |
+| 里程计时效波动 | 雷达合并会跳过不完整窗口，里程计也有接收断档。同时采样时，/localization/pose 的上一帧在被替换前最老达到 1.275 s，超过 0.75 s。 |
+| 实机启用先后被拦截 | /MOTION_INFO 持续上报状态 17，但源时间戳一直为 0，触发 MOTION_STALE。随后 /HES_STATUS 在 10 秒只收到一条，触发 ESTOP_STALE；/CHARGE_STATUS 多次未发现发布端。 |
+| APPROACH_A 规划失败且清理超时 | 适配器启用成功，任务进入 PLANNING 后报 POSE_STALE。随后因未确认稳定、保持和控制释放而报 CLEANUP_TIMEOUT，进入 FAULT_BLOCKED。复查时 busy=false，但 control_released=false。 |
+| 最近再次收不到里程计 | 本次已确认 legkilo_node 在 16:52:31 以 -6（SIGABRT）退出，DDS 图里里程计发布端为 0。退出前配准分数连续为 0.000，具体崩溃原因仍未确认。 |
+
+## 已做的改动
+
+- 定位时效从 0.5 s 调到 0.75 s，同步修改了定位适配器、任务就绪判断、段执行器三处。现场实测仍有超限。 适配器配置 (stair_site/m20_orin.yaml:19) · 任务配置 (stair_site/mission.yaml:10) · 路线配置 (stair_site/route.yaml:52)
+- 增加 /MOTION_INFO 接收时间模式。现场启用 use_motion_receipt_time: true，订阅队列只保留最新一帧，以本机单调时钟判断是否断流。0.5 s 无新反馈仍报 MOTION_STALE，通用配置默认继续使用源时间戳。 运动适配器 (stair_nav/stair_nav/m20_motion_node.py)
+- 增加两个独立启动参数 require_fresh_estop 和 require_fresh_charge，默认均为 true。设为 false 可跳过对应反馈的缺失和过期检查，已收到的急停触发、充电或充电错误仍会拦截。现场实机测试使用了两个 false。 启动文件 (stair_nav/launch/m20_orin.launch.py)
+- 增加回归测试，覆盖零时间戳、接收断流及两个时效开关。最后一轮 100 项核心测试、13 项 ROS 接口测试通过。本机已确认是符号链接安装，这些改动重启导航即可加载，无需重新编译。
+- 运行环境调整包括用系统版 libusb 启动 Leg-KILO，以及让定位、导航和查询终端统一使用 UDPv4 测试配置。UDP XML 目前位于 /tmp，尚未固化到部署目录。 UDP 测试配置 (/tmp/stair-dds-udp.xml)

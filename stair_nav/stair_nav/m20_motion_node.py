@@ -40,12 +40,13 @@ def native_header(message, sequence, now):
     return message
 
 
-def motion_observation(message):
+def motion_observation(message, *, receipt_stamp=None, received_at=None):
     """Names verified against the vendor's MotionInfoValue.msg source."""
     data = message.data
     return MotionObservation(
-        timestamp_seconds(message.header), int(data.motion_state.state),
-        int(data.gait_state.gait), float(data.vel_x), float(data.vel_y), float(data.vel_yaw))
+        timestamp_seconds(message.header) if receipt_stamp is None else receipt_stamp,
+        int(data.motion_state.state), int(data.gait_state.gait), float(data.vel_x),
+        float(data.vel_y), float(data.vel_yaw), received_at)
 
 
 class M20MotionNode(Node):
@@ -117,7 +118,11 @@ class M20MotionNode(Node):
         self.status = self.create_publisher(MotionStatus, topics['motion_status_topic'], live_qos(5))
         self.diagnostic = self.create_publisher(String, topics['diagnostic_topic'], live_qos(5))
         self.create_subscription(ControlCommand, topics['command_topic'], self.on_command, live_qos())
-        self.create_subscription(self.types['motion'], topics['motion_info_topic'], self.on_motion, sensor_qos)
+        motion_qos = sensor_qos
+        if self.adapter.config.use_motion_receipt_time:
+            motion_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT,
+                                    durability=DurabilityPolicy.VOLATILE)
+        self.create_subscription(self.types['motion'], topics['motion_info_topic'], self.on_motion, motion_qos)
         if self.adapter.config.require_location_status:
             self.create_subscription(self.types['location'], topics['location_status_topic'], self.on_location, sensor_qos)
         self.create_subscription(Imu, topics['imu_topic'], self.on_imu, sensor_qos)
@@ -153,7 +158,12 @@ class M20MotionNode(Node):
 
     def on_motion(self, message):
         try:
-            self.adapter.observe_motion(motion_observation(message))
+            if self.adapter.config.use_motion_receipt_time:
+                observation = motion_observation(
+                    message, receipt_stamp=self.now(), received_at=time.monotonic())
+            else:
+                observation = motion_observation(message)
+            self.adapter.observe_motion(observation)
         except (ValueError, TypeError, AttributeError) as exc:
             self.invalid_input('MOTION_INFO', exc)
 

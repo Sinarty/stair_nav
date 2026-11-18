@@ -38,10 +38,14 @@ class M20Config:
     stair_min_vx: float = .15
     flat_min_wz: float = .35
     stair_min_wz: float = .4
+    use_motion_receipt_time: bool = False
+    require_fresh_estop: bool = True
+    require_fresh_charge: bool = True
 
     def __post_init__(self):
         for name in ('dry_run', 'navigation_mode_confirmed', 'planner_stopped',
-                     'require_location_status'):
+                     'require_location_status', 'use_motion_receipt_time',
+                     'require_fresh_estop', 'require_fresh_charge'):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f'{name} must be boolean')
         for name in ('motion_timeout', 'imu_timeout', 'location_timeout', 'safety_timeout',
@@ -68,6 +72,7 @@ class MotionObservation:
     vx: float
     vy: float
     wz: float
+    received_at: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -115,11 +120,12 @@ class M20MotionAdapter:
             return
         if not isinstance(observation, MotionObservation) or not _finite(
                 observation.stamp, observation.state, observation.gait,
-                observation.vx, observation.vy, observation.wz):
+                observation.vx, observation.vy, observation.wz) or (
+                self.config.use_motion_receipt_time and not _finite(observation.received_at)):
             self._motion, self._stable_since = None, None
             self._native_fault_edge('MOTION_STALE')
             return
-        if (old is None or observation.stamp-old.stamp > self.config.motion_timeout or
+        if (old is None or not self._motion_fresh(observation.stamp, observation.received_at) or
                 observation.state != 17 or
                 math.hypot(observation.vx, observation.vy) > self.config.linear_stable_threshold or
                 abs(observation.wz) > self.config.yaw_stable_threshold):
@@ -161,7 +167,8 @@ class M20MotionAdapter:
                 received_steady < self._estop[0]):
             return
         if not _finite(received_steady) or type(active) is not bool:
-            self._estop = None
+            if self.config.require_fresh_estop:
+                self._estop = None
             self._native_fault_edge('ESTOP_STALE')
         else:
             self._estop = (received_steady, active)
@@ -173,7 +180,8 @@ class M20MotionAdapter:
                 received_steady < self._charge[0]):
             return
         if not _finite(received_steady, state, error_code):
-            self._charge = None
+            if self.config.require_fresh_charge:
+                self._charge = None
             self._native_fault_edge('CHARGE_STALE')
         else:
             self._charge = (received_steady, state, error_code)
@@ -194,6 +202,14 @@ class M20MotionAdapter:
     @staticmethod
     def _fresh(stamp, now, timeout):
         return _finite(stamp, now) and 0 <= now-stamp <= timeout
+
+    def _motion_fresh(self, now, steady):
+        motion = self._motion
+        if motion is None:
+            return False
+        if self.config.use_motion_receipt_time:
+            return self._fresh(motion.received_at, steady, self.config.motion_timeout)
+        return self._fresh(motion.stamp, now, self.config.motion_timeout)
 
     def _fault(self, code, message):
         self._fault_code, self._fault_message = code, message
@@ -240,7 +256,7 @@ class M20MotionAdapter:
 
     def _native_reason(self, now, steady):
         c, m = self.config, self._motion
-        if m is None or not self._fresh(m.stamp, now, c.motion_timeout):
+        if not self._motion_fresh(now, steady):
             return 'MOTION_STALE'
         if m.state != 17:
             return 'MOTION_STATE'
@@ -253,17 +269,26 @@ class M20MotionAdapter:
                 return 'LOCATION_STALE'
             if self._location[1] != c.normal_location_status:
                 return 'LOCATION_ABNORMAL'
-        if self._estop is None or not self._fresh(self._estop[0], steady, c.safety_timeout):
-            return 'ESTOP_STALE'
-        if self._estop[1]:
-            return 'ESTOP_ACTIVE'
-        if self._charge is None or not self._fresh(self._charge[0], steady, c.safety_timeout):
-            return 'CHARGE_STALE'
-        if self._charge[1] != 0 or self._charge[2] != 0:
-            return 'CHARGING_OR_ERROR'
+        reason = self._safety_reason(steady)
+        if reason:
+            return reason
         if (self._mode() not in ('flat', 'stair') and m.gait not in (4097, 4099) and
                 self._pending_gait is None):
             return 'GAIT_UNSUPPORTED'
+        return ''
+
+    def _safety_reason(self, steady):
+        c = self.config
+        if c.require_fresh_estop and (
+                self._estop is None or not self._fresh(self._estop[0], steady, c.safety_timeout)):
+            return 'ESTOP_STALE'
+        if self._estop is not None and self._estop[1]:
+            return 'ESTOP_ACTIVE'
+        if c.require_fresh_charge and (
+                self._charge is None or not self._fresh(self._charge[0], steady, c.safety_timeout)):
+            return 'CHARGE_STALE'
+        if self._charge is not None and self._charge[1:] != (0, 0):
+            return 'CHARGING_OR_ERROR'
         return ''
 
     def _update_stable(self, now, steady):
@@ -271,7 +296,7 @@ class M20MotionAdapter:
         if self._pending_gait is not None or self._fault_stop_pending:
             self._stable_since, self._stable = None, False
             return
-        quiet = (m is not None and self._fresh(m.stamp, now, c.motion_timeout) and
+        quiet = (m is not None and self._motion_fresh(now, steady) and
                  m.state == 17 and math.hypot(m.vx, m.vy) <= c.linear_stable_threshold and
                  abs(m.wz) <= c.yaw_stable_threshold and self._imu is not None and
                  self._fresh(self._imu[0], now, c.imu_timeout) and
@@ -402,11 +427,8 @@ class M20MotionAdapter:
 
     def _can_stop_physically(self, now, steady):
         m, c = self._motion, self.config
-        return bool(not c.dry_run and m and self._fresh(m.stamp, now, c.motion_timeout) and
-                    m.state == 17 and self._estop and
-                    self._fresh(self._estop[0], steady, c.safety_timeout) and not self._estop[1] and
-                    self._charge and self._fresh(self._charge[0], steady, c.safety_timeout) and
-                    self._charge[1:] == (0, 0))
+        return bool(not c.dry_run and m and self._motion_fresh(now, steady) and
+                    m.state == 17 and not self._safety_reason(steady))
 
     def tick(self, now, steady):
         clock_ok = self._clock(now, steady)
@@ -419,7 +441,7 @@ class M20MotionAdapter:
             if _finite(steady) and steady-sent > c.gait_timeout:
                 self._fault('GAIT_TIMEOUT', 'Native motion did not confirm the requested gait')
             elif (self._fault_code != 'GAIT_TIMEOUT' and m and m.state == 17 and
-                    self._fresh(m.stamp, now, c.motion_timeout) and
+                    self._motion_fresh(now, steady) and
                     m.gait == gait and m.stamp >= observation_stamp):
                 self._pending_gait = None
                 self._gait_ack_stamp = now
@@ -491,6 +513,8 @@ class M20MotionAdapter:
         return M20Output(feedback, vx, wz, publish, gait_request, dict(
             enabled=self.enabled, stopping=self._stopping, dry_run=c.dry_run,
             require_location_status=c.require_location_status,
+            use_motion_receipt_time=c.use_motion_receipt_time,
+            require_fresh_estop=c.require_fresh_estop, require_fresh_charge=c.require_fresh_charge,
             command_active=bool(live), command_expired=bool(command and not live),
             native_gate=reason, gait_pending=self._pending_gait is not None,
             last_rejection=self._last_rejection, velocity_deadzone=deadzone))

@@ -51,6 +51,7 @@ def test_not_ready_times_out_without_motion(route):
 
 
 def test_localization_dropout_revokes_command(route):
+    route['defaults']['timeouts']['pose_wait'] = 3.
     harness = Harness(route)
     executing(harness)
     harness.sim.faults['localization_dropout'] = True
@@ -58,6 +59,47 @@ def test_localization_dropout_revokes_command(route):
     assert result.status.error_code == 'POSE_STALE'
     assert not result.command.valid
     assert result.status.navigation_stopped
+
+
+@pytest.mark.parametrize('stage', [State.PLANNING, State.WAIT_READY])
+def test_stale_pose_before_motion_discards_plan_and_replans(route, stage):
+    route['defaults']['timeouts']['pose_wait'] = 3.
+    harness = Harness(route)
+    harness.start('AB')
+    engine = harness.engine
+    assert harness.step().status.state == State.PLANNING
+    if stage == State.WAIT_READY:
+        assert harness.step().status.state == State.WAIT_READY
+    cancel_event = engine._cancel_event
+    stale_at = engine.pose.stamp + engine.seg['timeouts']['pose'] + .01
+    waiting = engine.tick(stale_at, .05)
+    assert waiting.status.phase == 'waiting_pose'
+    assert waiting.path is None and cancel_event.is_set()
+    assert waiting.command.behavior == 'HOLD' and not waiting.command.valid
+    fresh_at = stale_at + .2
+    fresh = replace(engine.pose, stamp=fresh_at, x=engine.pose.x + .1)
+    engine.update_pose(fresh)
+    assert engine.tick(fresh_at, .05).status.state == State.PLANNING
+    assert engine._plan_start == fresh
+    assert engine.tick(fresh_at + .05, .05).status.state == State.WAIT_READY
+
+
+def test_stale_pose_wait_cannot_extend_its_deadline(route):
+    route['defaults']['timeouts']['pose_wait'] = 3.
+    harness = Harness(route)
+    harness.start('AB')
+    harness.step()
+    engine = harness.engine
+    stale_at = engine.pose.stamp + engine.seg['timeouts']['pose'] + .01
+    assert engine.tick(stale_at, .05).status.phase == 'waiting_pose'
+    resumed_at = stale_at + 1.
+    engine.update_pose(replace(engine.pose, stamp=resumed_at))
+    assert engine.tick(resumed_at, .05).status.state == State.PLANNING
+    assert engine.tick(resumed_at + 1., .05).status.phase == 'waiting_pose'
+    result = engine.tick(stale_at + 3., .05)
+    assert result.status.state == State.FAILED
+    assert result.status.error_code == 'POSE_STALE'
+    assert not result.command.valid
 
 
 def test_cancel_invalidates_before_hold_acknowledgement(route):

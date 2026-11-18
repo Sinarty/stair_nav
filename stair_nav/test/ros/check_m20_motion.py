@@ -60,6 +60,17 @@ class NativeInterfaceTests(unittest.TestCase):
         M20MotionNode.on_location(node, message)
         self.assertEqual(received, [(10.125, 1)])
 
+    def test_motion_callback_accepts_zero_source_stamp_in_receipt_mode(self):
+        received = []
+        node = S(adapter=S(config=S(use_motion_receipt_time=True),
+                           observe_motion=received.append), now=lambda: 10.5)
+        message = S(header=S(stamp=S(sec=0, nanosec=0)),
+                    data=S(motion_state=S(state=17), gait_state=S(gait=4097),
+                           vel_x=0., vel_y=0., vel_yaw=0.))
+        with patch('stair_nav.m20_motion_node.time.monotonic', return_value=30.):
+            M20MotionNode.on_motion(node, message)
+        self.assertEqual((received[0].stamp, received[0].received_at), (10.5, 30.))
+
     def test_wrong_location_status_schema_is_rejected(self):
         errors, received = [], []
         node = S(adapter=S(config=S(require_location_status=True),

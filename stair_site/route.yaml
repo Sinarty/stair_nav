@@ -76,3 +76,5 @@ segments:
     kind: platform  # 本次使用单一平台。
     backend: grid_astar  # 本次使用已转换的占据栅格规划。
     mode: flat  # 本次只请求平地运动模式。
+    timeouts:
+      pose_wait: 3.0  # s，运动前首次位姿过期后，等待及重试共用此期限。

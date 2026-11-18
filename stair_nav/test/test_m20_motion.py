@@ -64,6 +64,43 @@ class Rig:
         self.adapter.confirm(MotionFeedback(**values))
 
 
+@pytest.mark.parametrize('require_estop,require_charge,expected', [
+    (True, True, 'ESTOP_STALE'),
+    (False, True, 'CHARGE_STALE'),
+    (True, False, 'ESTOP_STALE'),
+    (False, False, ''),
+])
+def test_safety_freshness_requirements_are_independent(require_estop, require_charge, expected):
+    rig = Rig(require_fresh_estop=require_estop, require_fresh_charge=require_charge)
+    rig.steady += 3.1
+    assert rig.tick().diagnostics['native_gate'] == expected
+
+
+@pytest.mark.parametrize('feedback,expected', [
+    ({'estop': True}, 'ESTOP_ACTIVE'),
+    ({'charge': 1}, 'CHARGING_OR_ERROR'),
+])
+def test_disabling_freshness_keeps_reported_faults_blocking(feedback, expected):
+    rig = Rig(require_fresh_estop=False, require_fresh_charge=False)
+    rig.feed(**feedback)
+    rig.steady += 3.1
+    assert rig.tick().diagnostics['native_gate'] == expected
+
+
+def test_motion_receipt_mode_expires_on_monotonic_time():
+    rig = Rig(use_motion_receipt_time=True)
+    adapter = rig.adapter
+    for i in range(5):
+        now, steady = 10. + i * .1, 100. + i * .1
+        adapter.observe_motion(MotionObservation(now, 17, rig.gait, 0., 0., 0., steady))
+        adapter.observe_imu(now, 0.)
+        adapter.tick(now, steady)
+    assert adapter.enable(True, now, steady)[0]
+    output = adapter.tick(now + .1, steady + .51)
+    assert output.diagnostics['native_gate'] == 'MOTION_STALE'
+    assert not output.feedback.ready
+
+
 def test_default_dry_run_never_writes_and_idle_ready_needs_no_command():
     dry = Rig(dry_run=True)
     assert not dry.enable()[0]

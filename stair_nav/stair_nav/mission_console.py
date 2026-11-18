@@ -30,6 +30,7 @@ PHASES = {
     'checking': '输入检查',
     'planning': '路径规划',
     'waiting_ready': '等待运控',
+    'waiting_pose': '等待新鲜定位',
     'platform': '平台',
     'entry': '进梯',
     'stair': '楼梯',

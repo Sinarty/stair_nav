@@ -49,6 +49,7 @@ class SegmentExecutor:
         self._arrival_since = None
         self._arrival_started = None
         self._execution_started = None
+        self._pose_wait_deadline = None
 
     @property
     def active(self):
@@ -76,6 +77,7 @@ class SegmentExecutor:
         self._arrival_since = None
         self._arrival_started = None
         self._execution_started = None
+        self._pose_wait_deadline = None
         return True
 
     def update_pose(self, pose):
@@ -117,6 +119,25 @@ class SegmentExecutor:
     def cancel(self, now):
         if self.active:
             self._finish(State.CANCELED, 'CANCELED', 'Navigation revoked; adapter HOLD requested', now)
+
+    def _wait_for_fresh_pose(self, now):
+        wait = self.seg['timeouts'].get('pose_wait', 0.)
+        if not wait or self.status.state not in (State.CHECKING, State.PLANNING, State.WAIT_READY):
+            return False
+        if self._pose_wait_deadline is None:
+            self._pose_wait_deadline = now + wait
+        if now >= self._pose_wait_deadline:
+            return False
+        if self.status.phase != 'waiting_pose':
+            self._cancel_event.set()
+            if self._future is not None:
+                self._future.cancel()
+            self._future = None
+            self._cancel_event = Event()
+            self.path = self._tracker = None
+            self.status.phase = 'waiting_pose'
+            self._transition(State.CHECKING, now)
+        return True
 
     def _valid_pose(self, now):
         if self.pose is None:
@@ -186,6 +207,8 @@ class SegmentExecutor:
                     blocked = self._blocked.get(key)
                     if blocked and blocked[0]:
                         raise NavError('CHANNEL_BLOCKED', blocked[1] or 'External channel blocked')
+                if self.status.phase == 'waiting_pose' and now >= self._pose_wait_deadline:
+                    raise NavError('POSE_STALE', 'Timed out waiting for fresh localization before motion')
                 has_pose = self._valid_pose(now)
                 if self.status.state == State.CHECKING:
                     if not has_pose:
@@ -262,7 +285,8 @@ class SegmentExecutor:
                                            'Command sweep leaves inflated platform free space')
                         valid = True
             except NavError as exc:
-                self._finish(State.FAILED, exc.code, exc.message, now)
+                if exc.code != 'POSE_STALE' or not self._wait_for_fresh_pose(now):
+                    self._finish(State.FAILED, exc.code, exc.message, now)
                 valid = False
             except Exception as exc:  # An adapter/planner bug also revokes all commands.
                 self._finish(State.FAILED, 'INTERNAL_ERROR', f'{type(exc).__name__}: {exc}', now)
