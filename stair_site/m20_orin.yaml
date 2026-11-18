@@ -16,7 +16,7 @@ m20_localization:
     require_location_status: false  # 本次不依赖原厂定位状态码；保留位姿时间和几何检查。
     odom_qos_reliability: best_effort  # 字符串，可选 best_effort/reliable，按实际发布端匹配。
     status_qos_reliability: best_effort  # 字符串，可选 best_effort/reliable。
-    odom_timeout: 0.5  # s，定位观测允许的最大年龄。
+    odom_timeout: 0.75  # s，定位观测允许的最大年龄。
     location_status_timeout: 1.5  # s，定位质量观测允许的最大年龄。
     tf_retry_period: 0.05  # s，等待晚到 TF 时的重试周期。
     max_pending_odometry: 32  # 正整数，待转换的最大 ODOM 帧数。

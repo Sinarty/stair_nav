@@ -93,7 +93,7 @@ timeout 3s ros2 topic echo /m20/motion_diagnostic
 若输入的 `child_frame_id=base_link`，可检查自动发布的 TF：
 
 ```bash
-timeout 3s ros2 run tf2_ros tf2_echo base_link navigation_ground_reference
+timeout 3s ros2 run tf2_ros tf2_echo base navigation_ground_reference
 ```
 
 机身 frame 不同时，将 `base_link` 换成输入消息的实际名称。这个 TF 使用固定地面测试假设，Z 一致不代表已验证真实地面高度。

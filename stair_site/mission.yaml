@@ -7,7 +7,7 @@ readiness:
   # 接近测试从实时定位起步；A 是目标，不要求任务开始时已处于 A。
   # 定位、运控、控制释放以及规划器对起点/高度/碰撞的检查继续生效。
   require_start_node: false  # 布尔值；本次保留 false，从当前有效定位起步。
-  pose_max_age: 0.5  # 参考：定位观测允许的最大年龄，s。
+  pose_max_age: 0.75  # 参考：定位观测允许的最大年龄，s。
   motion_max_age: 0.5  # 参考：运动反馈允许的最大年龄，s。
   navigation_max_age: 0.5  # 参考：导航同步快照允许的最大年龄，s。
 
