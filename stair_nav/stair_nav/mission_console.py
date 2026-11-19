@@ -31,6 +31,7 @@ PHASES = {
     'planning': '路径规划',
     'waiting_ready': '等待运控',
     'waiting_pose': '等待新鲜定位',
+    'recovering_pose': '停车等待定位恢复',
     'platform': '平台',
     'entry': '进梯',
     'stair': '楼梯',

@@ -17,10 +17,11 @@ class Rig:
         self.feed()
         self.adapter.tick(self.now, self.steady)
 
-    def feed(self, vx=0., vy=0., wz=0., gyro=0., state=17, estop=False, charge=0, error=0):
+    def feed(self, vx=0., vy=0., wz=0., gyro=0., state=17, estop=False, charge=0, error=0,
+             imu_offset=0.):
         a = self.adapter
         a.observe_motion(MotionObservation(self.now, state, self.gait, vx, vy, wz))
-        a.observe_imu(self.now, gyro)
+        a.observe_imu(self.now + imu_offset, gyro)
         a.observe_location(self.now, 0)
         a.observe_estop(self.steady, estop)
         a.observe_charge(self.steady, charge, error)
@@ -99,6 +100,24 @@ def test_motion_receipt_mode_expires_on_monotonic_time():
     output = adapter.tick(now + .1, steady + .51)
     assert output.diagnostics['native_gate'] == 'MOTION_STALE'
     assert not output.feedback.ready
+
+
+@pytest.mark.parametrize('tolerance,offset,allowed', [
+    (0., .002, False),
+    (.005, .002, True),
+    (.005, .006, False),
+    (.005, -.501, False),
+])
+def test_imu_future_tolerance_applies_to_readiness_and_stability(tolerance, offset, allowed):
+    rig = Rig(imu_future_tolerance=tolerance)
+    for _ in range(10):
+        output = rig.step(imu_offset=offset)
+    assert output.feedback.stable == allowed
+    assert output.diagnostics['native_gate'] == ('' if allowed else 'IMU_STALE')
+    success, reason = rig.adapter.enable(True, rig.now, rig.steady)
+    assert success == allowed
+    if not allowed:
+        assert reason == 'IMU_STALE'
 
 
 def test_default_dry_run_never_writes_and_idle_ready_needs_no_command():

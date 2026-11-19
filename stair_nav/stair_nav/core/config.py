@@ -101,6 +101,12 @@ def validate_route(route):
         pose_wait = seg['timeouts'].get('pose_wait', 0.)
         check(isinstance(pose_wait, (int, float)) and not isinstance(pose_wait, bool) and
               math.isfinite(pose_wait) and pose_wait >= 0, f'{sid}: invalid timeouts.pose_wait')
+        recovery = seg['timeouts'].get('pose_recovery', 0.)
+        check(isinstance(recovery, (int, float)) and not isinstance(recovery, bool) and
+              math.isfinite(recovery) and recovery >= 0, f'{sid}: invalid timeouts.pose_recovery')
+        if recovery:
+            check(seg['backend'] == 'grid_astar' and seg['mode'] == 'flat',
+                  f'{sid}: localization recovery requires a flat grid_astar segment')
         for key in ('min_vx', 'match_backtrack'):
             value = seg['tracking'][key]
             check(math.isfinite(value) and value >= 0, f'{sid}: invalid tracking.{key}')

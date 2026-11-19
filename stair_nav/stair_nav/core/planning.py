@@ -16,6 +16,9 @@ import yaml
 from .models import NavError, PlannedPath, Waypoint
 
 
+_SAFE_YAML_LOADER = getattr(yaml, 'CSafeLoader', yaml.SafeLoader)
+
+
 def _cancelled(cancel_event):
     if cancel_event is not None and cancel_event.is_set():
         raise NavError('PLANNING_CANCELLED', 'Planning was cancelled')
@@ -25,7 +28,7 @@ def _load(route, filename):
     path = Path(route.get('_base_dir', '.')) / filename
     try:
         with path.open(encoding='utf-8') as stream:
-            return yaml.safe_load(stream)
+            return yaml.load(stream, Loader=_SAFE_YAML_LOADER)
     except (OSError, yaml.YAMLError, TypeError) as exc:
         raise NavError('MAP_IO', f'Cannot load {filename}: {exc}') from exc
 
@@ -178,20 +181,28 @@ class OccupancyGrid:
         radius = float(options.get('inflation_radius', 0.0))
         if not math.isfinite(radius) or radius < 0:
             raise NavError('INVALID_GRID', 'Inflation radius must be finite and nonnegative')
-        if radius > 0:
+        if radius > 0 and blocked:
             original = set(blocked)
             reach = math.ceil((radius + resolution * math.sqrt(2)) / resolution)
             # Inflate whole cells conservatively: all points of any retained free
             # cell clear occupied cell squares by at least the configured radius.
             limit = radius + resolution * math.sqrt(2) / 2
+            reach_x, reach_y = min(reach, width-1), min(reach, height-1)
+            offsets = []
+            for dy in range(-reach_y, reach_y + 1):
+                _cancelled(cancel_event)
+                ny = max(abs(dy)*resolution-resolution/2, 0)
+                for dx in range(-reach_x, reach_x + 1):
+                    nx = max(abs(dx)*resolution-resolution/2, 0)
+                    if math.hypot(nx, ny) <= limit:
+                        offsets.append((dx, dy))
             for ox, oy in original:
                 _cancelled(cancel_event)
-                for dy in range(-reach, reach + 1):
-                    for dx in range(-reach, reach + 1):
-                        x, y = ox + dx, oy + dy
-                        nx, ny = max(abs(dx)*resolution-resolution/2, 0), max(abs(dy)*resolution-resolution/2, 0)
-                        if 0 <= x < width and 0 <= y < height and math.hypot(nx, ny) <= limit:
-                            blocked.add((x, y))
+                for dx, dy in offsets:
+                    x, y = ox + dx, oy + dy
+                    if 0 <= x < width and 0 <= y < height:
+                        blocked.add((x, y))
+        if radius > 0:
             for y in range(height):
                 _cancelled(cancel_event)
                 for x in range(width):

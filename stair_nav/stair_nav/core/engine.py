@@ -50,6 +50,7 @@ class SegmentExecutor:
         self._arrival_started = None
         self._execution_started = None
         self._pose_wait_deadline = None
+        self._pose_recovery_started = self._pose_recovery_held_at = None
 
     @property
     def active(self):
@@ -78,6 +79,7 @@ class SegmentExecutor:
         self._arrival_started = None
         self._execution_started = None
         self._pose_wait_deadline = None
+        self._pose_recovery_started = self._pose_recovery_held_at = None
         return True
 
     def update_pose(self, pose):
@@ -121,21 +123,30 @@ class SegmentExecutor:
             self._finish(State.CANCELED, 'CANCELED', 'Navigation revoked; adapter HOLD requested', now)
 
     def _wait_for_fresh_pose(self, now):
-        wait = self.seg['timeouts'].get('pose_wait', 0.)
-        if not wait or self.status.state not in (State.CHECKING, State.PLANNING, State.WAIT_READY):
-            return False
-        if self._pose_wait_deadline is None:
-            self._pose_wait_deadline = now + wait
-        if now >= self._pose_wait_deadline:
-            return False
-        if self.status.phase != 'waiting_pose':
+        if self.status.state == State.EXECUTING and self.seg['timeouts'].get('pose_recovery', 0.):
+            self._pose_recovery_started = now
+            self.status.geometry_reached = False
+        recovering = self._pose_recovery_started is not None
+        if recovering:
+            if now >= self._pose_recovery_started + self.seg['timeouts']['pose_recovery']:
+                return False
+        else:
+            wait = self.seg['timeouts'].get('pose_wait', 0.)
+            if not wait or self.status.state not in (State.CHECKING, State.PLANNING, State.WAIT_READY):
+                return False
+            if self._pose_wait_deadline is None:
+                self._pose_wait_deadline = now + wait
+            if now >= self._pose_wait_deadline:
+                return False
+        phase = 'recovering_pose' if recovering else 'waiting_pose'
+        if self.status.phase != phase:
             self._cancel_event.set()
             if self._future is not None:
                 self._future.cancel()
             self._future = None
             self._cancel_event = Event()
-            self.path = self._tracker = None
-            self.status.phase = 'waiting_pose'
+            self.path = self._tracker = self._target = None
+            self.status.phase = phase
             self._transition(State.CHECKING, now)
         return True
 
@@ -209,12 +220,29 @@ class SegmentExecutor:
                         raise NavError('CHANNEL_BLOCKED', blocked[1] or 'External channel blocked')
                 if self.status.phase == 'waiting_pose' and now >= self._pose_wait_deadline:
                     raise NavError('POSE_STALE', 'Timed out waiting for fresh localization before motion')
+                recovering = self._pose_recovery_started is not None
+                recovery_held = False
+                if recovering:
+                    if now - self._execution_started > self.seg['timeouts']['execution']:
+                        raise NavError('EXECUTION_TIMEOUT', 'Segment execution deadline exceeded during localization recovery')
+                    if now >= self._pose_recovery_started + self.seg['timeouts']['pose_recovery']:
+                        raise NavError('POSE_STALE', 'Timed out waiting for localization recovery and a safe restart')
+                    if self._motion_fresh(now):
+                        self._check_motion(now, False)
+                        m = self.motion
+                        recovery_held = (m.stamp >= self._pose_recovery_started and m.ready and
+                                         m.stable and m.hold_confirmed and m.mode == self.seg['mode'])
+                    if recovery_held and self._pose_recovery_held_at is None:
+                        self._pose_recovery_held_at = self.motion.stamp
+                    elif not recovery_held and self._pose_recovery_held_at is not None:
+                        self._pose_recovery_held_at = None
+                        self._wait_for_fresh_pose(now)
                 has_pose = self._valid_pose(now)
                 if self.status.state == State.CHECKING:
                     if not has_pose:
                         if now - self._started > self.seg['timeouts']['pose']:
                             raise NavError('POSE_MISSING', 'Localization never became available')
-                    else:
+                    elif not recovering or (recovery_held and self.pose.stamp >= self._pose_recovery_held_at):
                         self._plan_start = self.pose
                         self._future = self._pool.submit(
                             plan, self.route, self.seg, self.pose, self._cancel_event)
@@ -241,8 +269,11 @@ class SegmentExecutor:
                 elif self.status.state == State.WAIT_READY:
                     if self._motion_fresh(now):
                         self._check_motion(now, False)
-                        if self.motion.ready and self.motion.mode == self.seg['mode']:
-                            self._execution_started = now
+                        if (self.motion.ready and self.motion.mode == self.seg['mode'] and
+                                (not recovering or recovery_held)):
+                            if self._execution_started is None:
+                                self._execution_started = now
+                            self._pose_recovery_started = self._pose_recovery_held_at = None
                             self._transition(State.EXECUTING, now)
                     if self.status.state == State.WAIT_READY and now - self._state_since > self.seg['timeouts']['ready']:
                         raise NavError('READY_TIMEOUT', 'Motion adapter did not confirm readiness and mode')

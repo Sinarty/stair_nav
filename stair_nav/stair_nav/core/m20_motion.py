@@ -41,6 +41,7 @@ class M20Config:
     use_motion_receipt_time: bool = False
     require_fresh_estop: bool = True
     require_fresh_charge: bool = True
+    imu_future_tolerance: float = 0.
 
     def __post_init__(self):
         for name in ('dry_run', 'navigation_mode_confirmed', 'planner_stopped',
@@ -54,7 +55,8 @@ class M20Config:
                      'confirmation_timeout', 'gait_timeout'):
             if not _finite(getattr(self, name)) or getattr(self, name) <= 0:
                 raise ValueError(f'{name} must be finite and positive')
-        for name in ('flat_min_vx', 'stair_min_vx', 'flat_min_wz', 'stair_min_wz'):
+        for name in ('flat_min_vx', 'stair_min_vx', 'flat_min_wz', 'stair_min_wz',
+                     'imu_future_tolerance'):
             if not _finite(getattr(self, name)) or getattr(self, name) < 0:
                 raise ValueError(f'{name} must be finite and nonnegative')
         if (not self.supported_modes or set(self.supported_modes) - {'flat', 'stair'} or
@@ -200,8 +202,8 @@ class M20MotionAdapter:
         self._confirmation = feedback
 
     @staticmethod
-    def _fresh(stamp, now, timeout):
-        return _finite(stamp, now) and 0 <= now-stamp <= timeout
+    def _fresh(stamp, now, timeout, *, future_tolerance=0.):
+        return _finite(stamp, now) and -future_tolerance <= now-stamp <= timeout
 
     def _motion_fresh(self, now, steady):
         motion = self._motion
@@ -210,6 +212,11 @@ class M20MotionAdapter:
         if self.config.use_motion_receipt_time:
             return self._fresh(motion.received_at, steady, self.config.motion_timeout)
         return self._fresh(motion.stamp, now, self.config.motion_timeout)
+
+    def _imu_fresh(self, now):
+        return self._imu is not None and self._fresh(
+            self._imu[0], now, self.config.imu_timeout,
+            future_tolerance=self.config.imu_future_tolerance)
 
     def _fault(self, code, message):
         self._fault_code, self._fault_message = code, message
@@ -260,7 +267,7 @@ class M20MotionAdapter:
             return 'MOTION_STALE'
         if m.state != 17:
             return 'MOTION_STATE'
-        if self._imu is None or not self._fresh(self._imu[0], now, c.imu_timeout):
+        if not self._imu_fresh(now):
             return 'IMU_STALE'
         if c.require_location_status:
             if c.normal_location_status == -1:
@@ -298,8 +305,7 @@ class M20MotionAdapter:
             return
         quiet = (m is not None and self._motion_fresh(now, steady) and
                  m.state == 17 and math.hypot(m.vx, m.vy) <= c.linear_stable_threshold and
-                 abs(m.wz) <= c.yaw_stable_threshold and self._imu is not None and
-                 self._fresh(self._imu[0], now, c.imu_timeout) and
+                 abs(m.wz) <= c.yaw_stable_threshold and self._imu_fresh(now) and
                  self._imu[1] <= c.gyro_stable_threshold)
         if not quiet:
             self._stable_since, self._stable = None, False

@@ -61,6 +61,64 @@ def test_localization_dropout_revokes_command(route):
     assert result.status.navigation_stopped
 
 
+def test_tracking_localization_recovery_requires_stop_and_new_pose(route):
+    route['segments']['AB']['timeouts'] = {'pose_recovery': 3.}
+    harness = Harness(route)
+    executing(harness)
+    engine = harness.engine
+    original_path = engine.path
+    execution_started = engine._execution_started
+    stale_at = engine.pose.stamp + engine.seg['timeouts']['pose'] + .01
+    waiting = engine.tick(stale_at, .05)
+    assert waiting.status.phase == 'recovering_pose'
+    assert waiting.command.behavior == 'HOLD' and not waiting.command.valid
+    assert waiting.path is None
+
+    # A previous HOLD acknowledgement may still be fresh but predates the stop.
+    engine.update_motion(replace(engine.motion, stamp=stale_at - .01,
+                                 stable=True, hold_confirmed=True))
+    engine.update_pose(replace(engine.pose, stamp=stale_at + .05))
+    assert engine.tick(stale_at + .05, .05).status.phase == 'recovering_pose'
+
+    engine.update_motion(replace(engine.motion, stamp=stale_at + .10))
+    assert engine.tick(stale_at + .10, .05).status.phase == 'recovering_pose'
+    engine.update_pose(replace(engine.pose, stamp=stale_at + .15, x=engine.pose.x + .1))
+    planning = engine.tick(stale_at + .15, .05)
+    assert planning.status.state == State.PLANNING and not planning.command.valid
+    assert engine._plan_start == engine.pose
+    ready = engine.tick(stale_at + .20, .05)
+    assert ready.status.state == State.WAIT_READY and ready.path is not original_path
+    assert not engine.tick(stale_at + .25, .05).command.valid
+    assert engine.tick(stale_at + .30, .05).command.valid
+    assert engine._execution_started == execution_started
+
+
+def test_tracking_localization_recovery_expires_while_holding(route):
+    route['segments']['AB']['timeouts'] = {'pose_recovery': 3.}
+    harness = Harness(route)
+    executing(harness)
+    engine = harness.engine
+    stale_at = engine.pose.stamp + engine.seg['timeouts']['pose'] + .01
+    assert engine.tick(stale_at, .05).status.phase == 'recovering_pose'
+    result = engine.tick(stale_at + 3., .05)
+    assert result.status.state == State.FAILED
+    assert result.status.error_code == 'POSE_STALE'
+    assert result.command.behavior == 'HOLD' and not result.command.valid
+
+
+def test_tracking_localization_recovery_respects_execution_deadline(route):
+    route['segments']['AB']['timeouts'] = {'pose_recovery': 3., 'execution': 2.}
+    harness = Harness(route)
+    executing(harness)
+    engine = harness.engine
+    stale_at = engine.pose.stamp + engine.seg['timeouts']['pose'] + .01
+    assert engine.tick(stale_at, .05).status.phase == 'recovering_pose'
+    result = engine.tick(engine._execution_started + 2.01, .05)
+    assert result.status.state == State.FAILED
+    assert result.status.error_code == 'EXECUTION_TIMEOUT'
+    assert result.command.behavior == 'HOLD' and not result.command.valid
+
+
 @pytest.mark.parametrize('stage', [State.PLANNING, State.WAIT_READY])
 def test_stale_pose_before_motion_discards_plan_and_replans(route, stage):
     route['defaults']['timeouts']['pose_wait'] = 3.

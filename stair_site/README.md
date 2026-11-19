@@ -18,7 +18,6 @@ export ROS_LOCALHOST_ONLY=0
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
 export STAIR_SITE_DIR="$HOME/ros2_ws/src/stair_nav/stair_site"
 export STAIR_TEST_LOG_ROOT="$HOME/stair_test_logs"
-mkdir -p "$STAIR_TEST_LOG_ROOT"
 
 ros2 pkg prefix drdds
 ros2 pkg prefix stair_nav
@@ -177,6 +176,18 @@ ros2 bag record -s sqlite3 \
   /MOTION_INFO /IMU /HES_STATUS /CHARGE_STATUS /NAV_CMD /GAIT
 ```
 
+在原指令中加入前雷达、后雷达和合并点云，保留已有的里程计、定位、任务和运控话题：
+
+ros2 bag record -s sqlite3 \
+  -o "$STAIR_TEST_LOG_ROOT/approach_a_$(date +%Y%m%d_%H%M%S)" \
+  /rslidar_points_front /rslidar_points_rear /rslidar_points_merged \
+  /localization/odometry /localization/pose \
+  /tf /tf_static \
+  /navigation/reference_path /navigation/command /navigation/status \
+  /motion/status /mission/status /mission/events \
+  /m20/localization_diagnostic /m20/motion_diagnostic \
+  /MOTION_INFO /IMU /HES_STATUS /CHARGE_STATUS /NAV_CMD /GAIT
+
 确认 recorder 已运行并订阅现有话题，再发送任务。后续出现的路径和指令话题会被自动发现。每次完整测试或取消测试使用单独的记录目录。
 
 ## 7. 发送一次任务
@@ -296,7 +307,7 @@ reset 只解除任务守卫，不自动恢复旧任务；确认可以开始新�
 
 ## 已做的改动
 
-- 定位时效从 0.5 s 调到 0.75 s，同步修改了定位适配器、任务就绪判断、段执行器三处。现场实测仍有超限。 适配器配置 (stair_site/m20_orin.yaml:19) · 任务配置 (stair_site/mission.yaml:10) · 路线配置 (stair_site/route.yaml:52)
+- 定位时效从 0.5 s 调到 0.85 s，同步修改了定位适配器、任务就绪判断、段执行器三处。现场实测仍有超限。 适配器配置 (stair_site/m20_orin.yaml:19) · 任务配置 (stair_site/mission.yaml:10) · 路线配置 (stair_site/route.yaml:52)
 - 增加 /MOTION_INFO 接收时间模式。现场启用 use_motion_receipt_time: true，订阅队列只保留最新一帧，以本机单调时钟判断是否断流。0.5 s 无新反馈仍报 MOTION_STALE，通用配置默认继续使用源时间戳。 运动适配器 (stair_nav/stair_nav/m20_motion_node.py)
 - 增加两个独立启动参数 require_fresh_estop 和 require_fresh_charge，默认均为 true。设为 false 可跳过对应反馈的缺失和过期检查，已收到的急停触发、充电或充电错误仍会拦截。现场实机测试使用了两个 false。 启动文件 (stair_nav/launch/m20_orin.launch.py)
 - 增加回归测试，覆盖零时间戳、接收断流及两个时效开关。最后一轮 100 项核心测试、13 项 ROS 接口测试通过。本机已确认是符号链接安装，这些改动重启导航即可加载，无需重新编译。
