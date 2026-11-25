@@ -43,7 +43,7 @@ defaults:
     max_jump: 0.5  # 参考：预设路径相邻点最大间距，m；本次仅配置校验要求填写。
     join_xy: 0.25  # 参考：预设路径入口 XY 邻域，m；本次仅配置校验要求填写。
     join_z: 0.15  # 参考：规划期间起点允许的高度变化，m；也用于预设路径入口。
-    inflation_radius: 0.2  # 现场测试值：障碍膨胀半径，m，需结合机体、负载和净空复核。
+    inflation_radius: 0.2  # m，跟踪碰撞检查使用的障碍膨胀半径，也是规划的基础半径。
     unknown_is_obstacle: true  # 布尔值；将未知栅格按障碍处理。
     simplify: true  # 布尔值；在碰撞检查通过时简化栅格路径。
   timeouts:
@@ -76,6 +76,8 @@ segments:
     kind: platform  # 本次使用单一平台。
     backend: grid_astar  # 本次使用已转换的占据栅格规划。
     mode: flat  # 本次只请求平地运动模式。
+    planning:
+      extra_clearance: 0.10  # m，A* 搜索和路径简化使用 0.20 + 0.10 m，跟踪检查使用 0.20 m。
     timeouts:
       pose_wait: 3.0  # s，运动前首次位姿过期后，等待及重试共用此期限。
       pose_recovery: 3.0  # s，跟踪中定位过期后，停车确认、新定位和重新规划共用此期限。

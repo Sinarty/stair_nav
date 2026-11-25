@@ -117,4 +117,10 @@ def validate_route(route):
             check(math.isfinite(value) and value > 0, f'{sid}: invalid planning.{key}')
         radius = seg['planning'].get('inflation_radius', 0)
         check(math.isfinite(radius) and radius >= 0, f'{sid}: invalid inflation radius')
+        clearance = seg['planning'].get('extra_clearance', 0.)
+        check(isinstance(clearance, (int, float)) and not isinstance(clearance, bool) and
+              math.isfinite(clearance) and clearance >= 0,
+              f'{sid}: invalid planning.extra_clearance')
+        check(not clearance or seg['backend'] == 'grid_astar',
+              f'{sid}: planning.extra_clearance requires grid_astar')
     return route

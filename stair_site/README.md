@@ -52,7 +52,7 @@ timeout 3s ros2 topic echo /localization/odometry --qos-reliability best_effort
 - 类型为 `nav_msgs/msg/Odometry`，`header.frame_id=map`，`child_frame_id` 为正确且非空的机身坐标系。
 - 源时间持续更新，与 Orin 时间一致；位姿年龄不超过 `0.5 s`，位置和四元数有效。
 - 定位与地图坐标一致，地图 `(2.0, 0.0)` 对应现场 A 点，起点到 A 的实际通道与地图一致。
-- 当前障碍膨胀半径为 `0.4 m`，应与机体、负载和现场净空相符。
+- 当前跟踪碰撞检查使用 `0.20 m` 障碍膨胀半径。`APPROACH_A` 的 A* 搜索和路径简化额外预留 `0.10 m`，合计按 `0.30 m` 选路。起点、目标及通道需满足规划净空，并在现场核对地图与机体实际净空。
 
 ## 3. 只读启动导航
 

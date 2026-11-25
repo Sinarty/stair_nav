@@ -32,6 +32,28 @@ def test_astar_detours_and_simplified_path_is_collision_free(tmp_path):
     assert all(grid.line_is_free((a.x, a.y), (b.x, b.y)) for a, b in zip(path.points, path.points[1:]))
 
 
+def test_astar_extra_clearance_preserves_tracking_collision_grid(tmp_path):
+    rows = [[0]*11 for _ in range(11)]
+    rows[4][5] = 100
+    route, segment, pose, document = grid_setup(
+        tmp_path, rows, start=(2.5, 2.5), goal=(8.5, 2.5),
+        simplify=True, inflation_radius=.1)
+    backend = GridAStarBackend()
+    baseline = backend.plan(route, segment, pose)
+    segment['planning']['extra_clearance'] = 1.25
+    wider_path = backend.plan(route, segment, pose)
+
+    planning_grid = OccupancyGrid.from_mapping(document, {'inflation_radius': 1.35})
+    start, goal = (pose.x, pose.y), (8.5, 2.5)
+    assert len(baseline.points) == 2
+    assert not planning_grid.line_is_free(start, goal)
+    assert wider_path.length > baseline.length
+    xy = [(point.x, point.y) for point in wider_path.points]
+    assert all(planning_grid.line_is_free(a, b) for a, b in zip(xy, xy[1:]))
+    assert wider_path.collision_grid.blocked == baseline.collision_grid.blocked
+    assert wider_path.collision_grid.line_is_free(start, goal)
+
+
 def test_astar_unreachable_target(tmp_path):
     rows = [[0]*8 for _ in range(8)]
     for y in range(8):

@@ -329,19 +329,29 @@ class OccupancyGrid:
 class GridAStarBackend(PlanningBackend):
     def plan(self, route, segment, pose, cancel_event=None):
         options = segment.get('planning', {})
-        grid = OccupancyGrid.from_mapping(_load(route, segment['grid_file']), options, cancel_event)
-        if grid.heights is not None:
+        data = _load(route, segment['grid_file'])
+        collision_grid = OccupancyGrid.from_mapping(data, options, cancel_event)
+        if collision_grid.heights is not None:
             raise NavError('INVALID_GRID', 'Variable-height surfaces require height_grid_astar')
-        if grid.frame != route.get('frame', 'map') or pose.frame != grid.frame:
+        if collision_grid.frame != route.get('frame', 'map') or pose.frame != collision_grid.frame:
             raise NavError('FRAME_MISMATCH', 'Grid, route and localization frames must match')
-        if grid.platform_id != segment.get('platform_id'):
+        if collision_grid.platform_id != segment.get('platform_id'):
             raise NavError('PLATFORM_MISMATCH', 'Explicit grid platform_id does not match segment')
         goal = route['nodes'][segment['end']]['position']
         z_tolerance = options.get('platform_z_tolerance', .15)
-        if abs(pose.z-grid.height_z) > z_tolerance or abs(goal[2]-grid.height_z) > z_tolerance:
+        height = collision_grid.height_z
+        if abs(pose.z-height) > z_tolerance or abs(goal[2]-height) > z_tolerance:
             raise NavError('WRONG_PLATFORM_HEIGHT', 'Grid is only valid at its declared platform height')
         if not _finite((pose.x, pose.y, pose.z, pose.yaw, *goal)):
             raise NavError('INVALID_POSE', 'Start and goal coordinates must be finite')
+        grid = collision_grid
+        extra_clearance = options.get('extra_clearance', 0.)
+        if extra_clearance:
+            # Use the extra clearance for search and simplification. The tracker
+            # still validates commands against the original collision grid.
+            planning_radius = float(options.get('inflation_radius', 0.)) + extra_clearance
+            grid = OccupancyGrid.from_mapping(
+                data, dict(options, inflation_radius=planning_radius), cancel_event)
         start, target = grid.cell(pose.x, pose.y), grid.cell(goal[0], goal[1])
         if not grid.free(start):
             raise NavError('INVALID_START', 'Start is occupied, unknown, inflated or outside this platform grid')
@@ -397,8 +407,8 @@ class GridAStarBackend(PlanningBackend):
         # Recheck raw and simplified output, including exact start/goal-to-cell joins.
         if any(not grid.line_is_free(a, b) for a, b in zip(coordinates, coordinates[1:])):
             raise NavError('PATH_COLLISION', 'Output path failed conservative post-planning collision validation')
-        return PlannedPath([Waypoint(x, y, grid.height_z, 'platform', segment.get('mode', 'flat'))
-                            for x, y in coordinates], collision_grid=grid)
+        return PlannedPath([Waypoint(x, y, height, 'platform', segment.get('mode', 'flat'))
+                            for x, y in coordinates], collision_grid=collision_grid)
 
 
 class HeightGridAStarBackend(PlanningBackend):
