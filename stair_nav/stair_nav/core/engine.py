@@ -283,7 +283,7 @@ class SegmentExecutor:
                         raise NavError('EXECUTION_TIMEOUT', 'Segment execution deadline exceeded')
                     if self.status.state == State.EXECUTING and self.motion.mode != self.seg['mode']:
                         raise NavError('MODE_MISMATCH', 'Adapter changed movement mode during tracking')
-                    result = self._tracker.update(self.pose, dt)
+                    result = self._tracker.update(self.pose, dt, self.motion)
                     self._apply_tracking(result)
                     if result.geometry_reached:
                         if self.status.state == State.EXECUTING:

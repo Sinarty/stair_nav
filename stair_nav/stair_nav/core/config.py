@@ -112,6 +112,24 @@ def validate_route(route):
             check(math.isfinite(value) and value >= 0, f'{sid}: invalid tracking.{key}')
         check(seg['tracking']['min_vx'] <= seg['tracking']['max_vx'],
               f'{sid}: min_vx exceeds max_vx')
+        cornering = seg['tracking'].get('cornering')
+        if cornering is not None:
+            check(seg['backend'] == 'grid_astar' and seg['mode'] == 'flat' and
+                  seg['tracking'].get('allow_turn_in_place', False),
+                  f'{sid}: tracking.cornering requires flat grid_astar with in-place turning')
+            check(isinstance(cornering, dict), f'{sid}: tracking.cornering must be a mapping')
+            for key in ('min_turn_angle', 'resume_angle', 'slowdown_distance',
+                        'stop_distance', 'approach_speed'):
+                value = cornering.get(key)
+                check(isinstance(value, (int, float)) and not isinstance(value, bool) and
+                      math.isfinite(value) and value > 0,
+                      f'{sid}: invalid tracking.cornering.{key}')
+            check(cornering['resume_angle'] < cornering['min_turn_angle'] <= math.pi,
+                  f'{sid}: invalid corner turn angles')
+            check(cornering['stop_distance'] < cornering['slowdown_distance'],
+                  f'{sid}: corner stop distance must be smaller than slowdown distance')
+            check(cornering['approach_speed'] < seg['tracking']['max_vx'],
+                  f'{sid}: corner approach speed must be below max_vx')
         for key in ('timeout', 'max_jump', 'join_xy', 'join_z'):
             value = seg['planning'][key]
             check(math.isfinite(value) and value > 0, f'{sid}: invalid planning.{key}')

@@ -76,6 +76,13 @@ segments:
     kind: platform  # 本次使用单一平台。
     backend: grid_astar  # 本次使用已转换的占据栅格规划。
     mode: flat  # 本次只请求平地运动模式。
+    tracking:
+      cornering:
+        min_turn_angle: 0.436332313  # rad，约 25°，路径折点达到该角度时启用分阶段转弯。
+        resume_angle: 0.174532925  # rad，约 10°，对准出弯方向并实测稳定后恢复前进。
+        slowdown_distance: 0.45  # m，到折点的剩余路径距离小于此值时开始减速。
+        stop_distance: 0.12  # m，到折点的剩余路径距离进入此范围时开始停稳。
+        approach_speed: 0.15  # m/s，接近停车区时的前进限速，停车阶段继续减至零。
     planning:
       extra_clearance: 0.10  # m，A* 搜索和路径简化使用 0.20 + 0.10 m，跟踪检查使用 0.20 m。
     timeouts:

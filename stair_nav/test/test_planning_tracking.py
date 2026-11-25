@@ -4,7 +4,7 @@ import threading
 import pytest
 import yaml
 
-from stair_nav.core.models import NavError, PlannedPath, Pose, Waypoint
+from stair_nav.core.models import MotionFeedback, NavError, PlannedPath, Pose, Waypoint
 from stair_nav.core.planning import GridAStarBackend, OccupancyGrid, PresetPathBackend
 from stair_nav.core.tracking import PurePursuit
 
@@ -169,6 +169,45 @@ def tracker(path, **config):
                                  max_angular_accel=.6, **config),
                        {'position': [goal.x, goal.y, goal.z], 'yaw': 0.,
                         'arrival': {'xy': .1, 'z': .1, 'yaw': .1, 'progress': .97}})
+
+
+def test_cornering_brakes_and_waits_for_real_stability_before_advancing():
+    bend = PlannedPath([Waypoint(0., 0., 0.), Waypoint(1., 0., 0.), Waypoint(1., 1., 0.)])
+    policy = dict(min_turn_angle=math.radians(25), resume_angle=math.radians(10),
+                  slowdown_distance=.45, stop_distance=.12, approach_speed=.15)
+    follower = tracker(bend, allow_turn_in_place=True, cornering=policy)
+    follower.vx = .5
+
+    def step(x, yaw, stamp, stable):
+        motion = MotionFeedback(stamp, 'execution', 'APPROACH_A', 'flat', stable=stable)
+        return follower.update(Pose(x, 0., 0., yaw), .2, motion)
+
+    approach = step(.75, 0., 1., False)
+    assert approach.phase == 'corner_approach'
+    assert 0 < approach.vx < .5
+    for i in range(10):
+        braking = step(.92, 0., 2.+i, False)
+        assert braking.phase == 'corner_braking'
+        assert braking.wz == 0.
+    assert braking.vx == 0.
+    assert step(.92, 0., 2., True).phase == 'corner_braking'
+    turning = step(.92, 0., 12., True)
+    assert turning.phase == 'corner_turning'
+    assert turning.vx == 0. and turning.wz > 0.
+    for i in range(4):
+        settling = step(.92, math.radians(84), 13.+i, False)
+        assert settling.phase == 'corner_settling'
+        assert settling.vx == 0.
+    assert settling.wz == 0.
+    assert step(.92, math.radians(84), 13., True).phase == 'corner_settling'
+    drifted = step(.92, math.radians(75), 17., True)
+    assert drifted.phase == 'corner_turning'
+    assert drifted.vx == 0. and drifted.wz > 0.
+    for i in range(4):
+        assert step(.92, math.pi/2, 18.+i, False).vx == 0.
+    resumed = step(.92, math.pi/2, 22., True)
+    assert resumed.phase == 'platform'
+    assert resumed.vx > 0.
 
 
 def test_height_overlap_and_progress_do_not_jump_to_other_level():

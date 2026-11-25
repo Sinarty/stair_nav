@@ -1,4 +1,5 @@
 """Pure Pursuit on an annotated 3-D path, producing horizontal vx and yaw rate."""
+from collections import deque
 from dataclasses import dataclass
 import math
 
@@ -28,6 +29,45 @@ class PurePursuit:
         self.vx, self.wz = 0.0, 0.0
         self.last_pose = None
         self.command_ttl = command_ttl
+        self.cornering = tracking.get('cornering')
+        self._corners = deque()
+        self._corner_phase = ''
+        self._zero_observed_at = None
+        if self.cornering:
+            for i, (a, b, c) in enumerate(zip(path.points, path.points[1:], path.points[2:]), 1):
+                incoming = math.atan2(b.y-a.y, b.x-a.x)
+                outgoing = math.atan2(c.y-b.y, c.x-b.x)
+                if abs(wrap_angle(outgoing-incoming)) >= self.cornering['min_turn_angle']:
+                    self._corners.append((path.cumulative[i], outgoing))
+
+    def _confirmed_zero(self, motion):
+        if self.vx or self.wz or motion is None:
+            return False
+        if self._zero_observed_at is None:
+            self._zero_observed_at = motion.stamp
+            return False
+        return motion.stable and motion.stamp > self._zero_observed_at
+
+    def _corner_control(self, pose, motion):
+        """Brake, turn toward the outgoing edge, then wait for measured stability."""
+        _, outgoing = self._corners[0]
+        heading = wrap_angle(outgoing-pose.yaw)
+        aligned = abs(heading) <= self.cornering['resume_angle']
+        if not self._corner_phase:
+            self._corner_phase = 'corner_braking'
+        if self._corner_phase == 'corner_braking' and self._confirmed_zero(motion):
+            self._corner_phase = 'corner_turning'
+        if self._corner_phase == 'corner_turning' and aligned:
+            self._corner_phase = 'corner_settling'
+            self._zero_observed_at = None
+        if self._corner_phase == 'corner_settling' and self._confirmed_zero(motion):
+            if aligned:
+                self._corners.popleft()
+                self._corner_phase = ''
+                self._zero_observed_at = None
+                return None
+            self._corner_phase = 'corner_turning'
+        return heading, 1.5*heading if self._corner_phase == 'corner_turning' else 0.
 
     def _visible_target(self, pose, distance):
         grid = self.path.collision_grid
@@ -77,7 +117,7 @@ class PurePursuit:
             raise NavError('TRACKING_UNREACHABLE', 'No path edge within the active progress window')
         return best[1:]
 
-    def update(self, pose, dt):
+    def update(self, pose, dt, motion=None):
         if not all(math.isfinite(v) for v in (pose.x, pose.y, pose.z, pose.yaw, dt)) or dt <= 0:
             raise NavError('INVALID_POSE', 'Tracking needs a finite pose and positive timestep')
         s, matched, tangent = self._match(pose)
@@ -92,8 +132,7 @@ class PurePursuit:
         self.distance = max(self.distance, s)
         self.progress = self.distance/self.path.length if self.path.length > 1e-9 else 1.0
         self.last_pose = pose
-        target = self._visible_target(pose, min(
-            self.path.length, self.distance+self.config.get('lookahead', .6)))
+        lookahead = min(self.path.length, self.distance+self.config.get('lookahead', .6))
         goal_position, arrival = self.goal['position'], self.goal.get('arrival', {})
         goal_xy = math.hypot(pose.x-goal_position[0], pose.y-goal_position[1])
         goal_z = abs(pose.z-goal_position[2])
@@ -101,6 +140,19 @@ class PurePursuit:
         position_reached = (goal_xy <= arrival.get('xy', .15) and goal_z <= arrival.get('z', .15)
                             and self.progress >= arrival.get('progress', .97))
         geometry_reached = position_reached and abs(goal_yaw) <= arrival.get('yaw', .15)
+        corner_command = None
+        corner_speed = None
+        if self._corners and not position_reached:
+            corner_distance = self._corners[0][0]-self.distance
+            if corner_distance <= self.cornering['stop_distance']:
+                corner_command = self._corner_control(pose, motion)
+            elif corner_distance < self.cornering['slowdown_distance']:
+                lookahead = min(lookahead, self._corners[0][0])
+                span = self.cornering['slowdown_distance']-self.cornering['stop_distance']
+                ratio = (corner_distance-self.cornering['stop_distance'])/span
+                approach_speed = self.cornering['approach_speed']
+                corner_speed = approach_speed + ratio*(self.config['max_vx']-approach_speed)
+        target = self._visible_target(pose, lookahead)
         if geometry_reached:
             self.vx, self.wz = 0.0, 0.0
             return TrackingOutput(0, 0, self.progress, lateral, goal_yaw, target, matched.phase, True)
@@ -109,7 +161,12 @@ class PurePursuit:
         heading = wrap_angle(math.atan2(dy, dx)-pose.yaw) if target_distance > 1e-8 else goal_yaw
         stair = matched.mode == 'stair' or matched.phase == 'stair'
         turn_allowed = self.config.get('allow_turn_in_place', False) and (not stair or self.config.get('allow_stair_correction', False))
-        if position_reached:
+        phase = matched.phase
+        if corner_command is not None:
+            heading, desired_wz = corner_command
+            desired_vx = 0.
+            phase = self._corner_phase
+        elif position_reached:
             heading = goal_yaw
             if not turn_allowed:
                 raise NavError('FINAL_HEADING_UNREACHABLE', 'Target heading requires an unavailable in-place turn')
@@ -127,6 +184,9 @@ class PurePursuit:
                 remaining = max(0, self.path.length-self.distance)
                 speed = self.config.get('max_vx', .4)*min(1.0, remaining/self.config.get('slowdown_distance', .8))
                 speed = max(self.config.get('min_vx', .03), speed)
+                if corner_speed is not None:
+                    speed = min(speed, corner_speed)
+                    phase = 'corner_approach'
                 desired_vx = min(self.config.get('max_vx', .4), speed)*max(.1, math.cos(heading))
                 desired_vx *= -1 if reverse else 1
                 desired_wz = 2*abs(desired_vx)*math.sin(heading)/max(target_distance, .05)
@@ -150,7 +210,7 @@ class PurePursuit:
                 # Retain the acceleration bounds while reducing forward motion
                 # and steering toward a visible point on the validated path.
                 slow_vx = _clip(0., old_vx-dv, old_vx+dv)
-                turn = _clip(1.5*heading, -max_wz, max_wz)
+                turn = _clip(desired_wz if corner_command is not None else 1.5*heading, -max_wz, max_wz)
                 turn = _clip(turn, old_wz-dw, old_wz+dw)
                 if not turn_allowed and abs(slow_vx) < 1e-8 and abs(turn) > 1e-8:
                     raise NavError('TRACKING_COLLISION', 'Collision avoidance requires an unavailable in-place turn')
@@ -159,4 +219,4 @@ class PurePursuit:
                         not grid.motion_is_free(pose, slow_vx, turn, self.command_ttl)):
                     raise NavError('TRACKING_COLLISION', 'No collision-free command within motion limits')
                 self.vx, self.wz = slow_vx, turn
-        return TrackingOutput(self.vx, self.wz, self.progress, lateral, heading, target, matched.phase, False)
+        return TrackingOutput(self.vx, self.wz, self.progress, lateral, heading, target, phase, False)
